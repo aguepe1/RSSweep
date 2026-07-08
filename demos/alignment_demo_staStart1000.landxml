@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Demo LandXML 1.2 (E2-4): recta 30 + curva R25 ccw 90 + recta 30.
+     Puntos en orden "northing easting" (N E). staStart = 1000; una ecuacion de
+     PK en staInternal=1050 reinicia la estacion en 2000 (salto de +950). -->
+<LandXML xmlns="http://www.landxml.org/schema/LandXML-1.2" version="1.2">
+  <Units>
+    <Metric linearUnit="meter" areaUnit="squareMeter" angularUnit="radians"/>
+  </Units>
+  <Alignments>
+    <Alignment name="EJE-DEMO" length="99.27" staStart="1000">
+      <CoordGeom>
+        <Line>
+          <Start>0 0</Start>
+          <End>0 30</End>
+        </Line>
+        <Curve rot="ccw" radius="25">
+          <Start>0 30</Start>
+          <Center>25 30</Center>
+          <End>25 55</End>
+        </Curve>
+        <Line>
+          <Start>25 55</Start>
+          <End>55 55</End>
+        </Line>
+      </CoordGeom>
+      <StaEquation staInternal="1050" staBack="1050" staAhead="2000"/>
+    </Alignment>
+  </Alignments>
+</LandXML>

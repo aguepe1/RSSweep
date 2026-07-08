@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit + golden tests (Vitest)
+        run: npm test
+
+      - name: Build single-file HTML
+        run: npm run build
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E flow tests (Playwright)
+        run: npm run test:e2e
+
+      - name: Upload single-file artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: barrido-sweep-app
+          path: dist/index.html

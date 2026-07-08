@@ -1,0 +1,1429 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Barrido — sweep analysis para tranvías</title>
+    <style>
+      :root {
+        /* Paleta "papel" — DESIGN_SPEC §3 (tema claro por defecto) */
+        --paper: #fafaf8;
+        --surface: #ffffff;
+        --surface2: #f2f3f5;
+        --ink: #1a1d21;
+        --muted: #5a6470;
+        --faint: #656d78; /* AA sobre papel/superficie (contraste ≥ 4.5:1) */
+        --hair: #d9dde2;
+        --hair2: #c4cad1;
+        --action: #1a1d21; /* único color de acción: negro sólido */
+        /* Semántica de datos (chips/leyenda de UI) */
+        --c-footprint: #c62828;
+        --c-kin: #b8860b;
+        --c-kin-ink: #8a6508; /* variante para TEXTO kin (el oro claro no cumple AA) */
+        --c-uic: #2e7d32;
+        --c-vehicle: #1565c0;
+        --c-fuelle: #78838f;
+        /* Alias de compatibilidad con reglas heredadas */
+        --bg: var(--paper);
+        --panel: var(--surface);
+        --panel2: var(--surface2);
+        --line: var(--hair);
+        --line2: var(--hair2);
+        --amber: var(--action);
+        --cyan: var(--c-vehicle);
+        --red: var(--c-footprint);
+        --green: var(--c-uic);
+        --mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+        --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 13px;
+        overflow: hidden;
+      }
+      /* tabular-nums en TODO número (DESIGN_SPEC §2) */
+      input,
+      select,
+      .mono,
+      .ctable,
+      .fileline,
+      .vpbar .pk,
+      .statusbar {
+        font-variant-numeric: tabular-nums;
+      }
+      button {
+        font-family: var(--sans);
+        cursor: pointer;
+      }
+      input,
+      select {
+        font-family: var(--mono);
+        font-size: 12px;
+        background: var(--surface);
+        color: var(--ink);
+        border: 1px solid var(--hair2);
+        border-radius: 3px;
+        padding: 4px 6px;
+        width: 100%;
+      }
+      input:focus,
+      select:focus,
+      button:focus-visible {
+        outline: 2px solid var(--action);
+        outline-offset: 1px;
+      }
+      /* Accesibilidad §5: respeta la preferencia de movimiento reducido. */
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.001ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.001ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
+      input[type="checkbox"] {
+        width: auto;
+        accent-color: var(--action);
+      }
+      input[type="range"] {
+        padding: 0;
+        accent-color: var(--action);
+      }
+
+      .app {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+
+      /* ── Barra de menú (DESIGN_SPEC §4) ─────────────────────────────── */
+      .menubar {
+        flex: 0 0 40px;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 0 12px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--hair);
+      }
+      .menubar .brand {
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        margin-right: 10px;
+        color: var(--ink);
+      }
+      .menubar .spacer {
+        flex: 1;
+      }
+      .menubar .sub {
+        color: var(--faint);
+        font-size: 11px;
+        font-family: var(--mono);
+        margin-right: 8px;
+      }
+      .mitem {
+        position: relative;
+      }
+      .mbtn {
+        background: none;
+        border: 1px solid transparent;
+        color: var(--ink);
+        font-size: 12px;
+        padding: 5px 10px;
+        border-radius: 3px;
+      }
+      .mbtn:hover,
+      .mitem.open .mbtn {
+        background: var(--surface2);
+      }
+      .mdrop {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        z-index: 40;
+        min-width: 210px;
+        background: var(--surface);
+        border: 1px solid var(--hair2);
+        border-radius: 3px;
+        box-shadow: 0 1px 0 var(--hair);
+        padding: 4px;
+      }
+      .mitem.open .mdrop {
+        display: block;
+      }
+      .mopt {
+        display: block;
+        width: 100%;
+        text-align: left;
+        background: none;
+        border: none;
+        color: var(--ink);
+        font-size: 12px;
+        padding: 6px 8px;
+        border-radius: 3px;
+      }
+      .mopt:hover {
+        background: var(--surface2);
+      }
+      .mopt-static {
+        font-size: 11px;
+        color: var(--muted);
+        padding: 6px 8px;
+        line-height: 1.5;
+      }
+      .msep {
+        height: 1px;
+        background: var(--hair);
+        margin: 4px 2px;
+      }
+      .langsel {
+        width: auto;
+        padding: 4px 6px;
+        font-size: 11px;
+      }
+      .railbtn {
+        background: none;
+        border: 1px solid var(--hair2);
+        color: var(--muted);
+        border-radius: 3px;
+        padding: 4px 7px;
+        font-size: 11px;
+        margin-left: 4px;
+      }
+      .railbtn:hover {
+        color: var(--action);
+        border-color: var(--action);
+      }
+      .railbtn.on {
+        background: var(--surface2);
+      }
+      .banner {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 14px;
+        background: var(--surface2);
+        border-bottom: 1px solid var(--hair);
+        font-size: 12px;
+        color: var(--ink);
+      }
+      .banner[hidden] {
+        display: none;
+      }
+
+      .btn {
+        background: var(--panel2);
+        border: 1px solid var(--line2);
+        color: var(--ink);
+        border-radius: 4px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.02em;
+      }
+      .btn:hover {
+        border-color: var(--amber);
+        color: var(--amber);
+      }
+      .btn.primary {
+        background: var(--action);
+        border-color: var(--action);
+        color: #ffffff;
+        font-weight: 600;
+      }
+      .btn.primary:hover {
+        filter: brightness(1.35);
+        color: #ffffff;
+      }
+      .btn:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .btn.small {
+        padding: 3px 8px;
+        font-size: 11px;
+      }
+      .progress {
+        height: 6px;
+        background: var(--line);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .progress-bar {
+        height: 100%;
+        width: 0;
+        background: var(--amber);
+        transition: width 0.05s linear;
+      }
+
+      /* ── Zona central: 3 columnas + gutters (DESIGN_SPEC §4) ────────── */
+      .mid {
+        flex: 1 1 auto;
+        display: flex;
+        min-height: 0;
+        --lw: 360px;
+        --rw: 384px;
+      }
+      .panel-left {
+        flex: 0 1 var(--lw);
+        width: var(--lw);
+        display: flex;
+        flex-direction: column;
+        background: var(--surface);
+        border-right: 1px solid var(--hair);
+        min-width: 0;
+      }
+      .panel-right {
+        flex: 0 1 var(--rw);
+        width: var(--rw);
+        display: flex;
+        flex-direction: column;
+        background: var(--surface);
+        border-left: 1px solid var(--hair);
+        min-width: 0;
+      }
+      .mid.left-collapsed .panel-left,
+      .mid.left-collapsed #gutter-left {
+        display: none;
+      }
+      .mid.right-collapsed .panel-right,
+      .mid.right-collapsed #gutter-right {
+        display: none;
+      }
+      .gutter {
+        flex: 0 0 4px;
+        background: var(--hair);
+        cursor: col-resize;
+        touch-action: none;
+      }
+      .gutter:hover {
+        background: var(--hair2);
+      }
+      .panel-body {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        padding: 14px 14px 40px;
+      }
+      .panel-body::-webkit-scrollbar {
+        width: 8px;
+      }
+      .panel-body::-webkit-scrollbar-thumb {
+        background: var(--line2);
+        border-radius: 4px;
+      }
+
+      /* pestañas del panel de entrada */
+      .tabs {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: stretch;
+        border-bottom: 1px solid var(--hair);
+        background: var(--surface);
+      }
+      .tab {
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 9px 11px;
+      }
+      .tab:hover {
+        color: var(--ink);
+      }
+      .tab.active {
+        color: var(--ink);
+        border-bottom-color: var(--action);
+      }
+      .tabspacer {
+        flex: 1;
+      }
+      .panel-head {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--hair);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .panel-head .spacer {
+        flex: 1;
+      }
+      .tabpanel {
+        display: none;
+      }
+      .tabpanel.active {
+        display: block;
+      }
+
+      .sec {
+        margin-bottom: 22px;
+      }
+      .sec > h2 {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--amber);
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .sec > h2::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--line);
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+        align-items: center;
+      }
+      .row label {
+        flex: 0 0 148px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .row .u {
+        color: var(--faint);
+        font-family: var(--mono);
+        font-size: 11px;
+        flex: 0 0 22px;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      /* Tablas densas de módulos y rótulas (DESIGN_SPEC §2: 28px, hairline 1px) */
+      .dtable {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+        table-layout: fixed;
+      }
+      .dtable th {
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--faint);
+        text-align: left;
+        padding: 3px 3px 4px;
+        border-bottom: 1px solid var(--hair2);
+        white-space: nowrap;
+      }
+      .dtable td {
+        padding: 2px 3px;
+        border-bottom: 1px solid var(--hair);
+        vertical-align: middle;
+      }
+      .dtable input,
+      .dtable select {
+        padding: 3px 4px;
+        font-size: 11px;
+        height: 26px;
+        border-radius: 3px;
+      }
+      /* sin flechas de spinner: columnas numéricas estrechas y densas (§2) */
+      .dtable input[type="number"] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+        padding: 3px 3px;
+      }
+      .dtable input[type="number"]::-webkit-outer-spin-button,
+      .dtable input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      .dtable td.num {
+        text-align: right;
+        font-family: var(--mono);
+        color: var(--muted);
+      }
+      .dtable .mut {
+        color: var(--faint);
+        text-align: center;
+      }
+      .dtable tfoot td {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--muted);
+        border-bottom: none;
+        padding-top: 5px;
+      }
+      /* módulos */
+      tbody.mod > tr:first-child > td:first-child {
+        border-left: 3px solid var(--c-vehicle);
+      }
+      tbody.mod.susp > tr:first-child > td:first-child {
+        border-left-color: var(--faint);
+      }
+      tr.mrow td:first-child {
+        font-family: var(--mono);
+      }
+      td.tools {
+        white-space: nowrap;
+        text-align: right;
+      }
+      td.tools button {
+        background: none;
+        border: 1px solid transparent;
+        color: var(--muted);
+        border-radius: 3px;
+        padding: 1px 3px;
+        font-size: 12px;
+        font-family: var(--mono);
+        cursor: pointer;
+      }
+      td.tools button:hover {
+        color: var(--action);
+        border-color: var(--hair2);
+      }
+      td.tools .handle {
+        cursor: grab;
+      }
+      tbody.mod.drag-over > tr:first-child > td {
+        border-top: 2px solid var(--action);
+      }
+      tr.modx td {
+        padding-bottom: 6px;
+      }
+      tr.modx .sub {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+      }
+      tr.modx .sub .f label {
+        display: block;
+        font-size: 9px;
+        color: var(--faint);
+        margin-bottom: 2px;
+        letter-spacing: 0.04em;
+      }
+      /* rótulas */
+      tr.joint td:first-child {
+        border-left: 3px solid var(--c-kin);
+        font-family: var(--mono);
+        white-space: nowrap;
+      }
+      tr.joint.rigida td:first-child {
+        border-left-color: var(--c-footprint);
+      }
+      tr.joint.bisectriz td:first-child {
+        border-left-color: var(--c-uic);
+      }
+      tr.joint.exceeded td {
+        color: var(--c-footprint);
+      }
+      tr.jext td {
+        padding-bottom: 6px;
+      }
+      tr.jext .sub {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 6px;
+        align-items: center;
+      }
+      tr.jext .sub label {
+        font-size: 9px;
+        color: var(--faint);
+        letter-spacing: 0.04em;
+      }
+      .abar {
+        position: relative;
+        height: 7px;
+        background: var(--surface2);
+        border: 1px solid var(--hair);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .abar > span {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        background: var(--c-kin);
+      }
+      .abar.over > span {
+        background: var(--c-footprint);
+      }
+      .angcap {
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--muted);
+        margin-top: 2px;
+        white-space: nowrap;
+      }
+      #schematic {
+        border: 1px solid var(--hair);
+        border-radius: 3px;
+        background: var(--surface);
+        padding: 2px 4px;
+      }
+      #schematic:empty {
+        display: none;
+      }
+      .hint {
+        color: var(--faint);
+        font-size: 11px;
+        line-height: 1.45;
+        margin-top: 6px;
+      }
+      .warn {
+        color: var(--c-kin);
+        font-size: 11px;
+        line-height: 1.5;
+        margin-top: 6px;
+        font-family: var(--mono);
+      }
+      .err {
+        color: var(--c-footprint);
+        font-size: 11px;
+        line-height: 1.5;
+        margin-top: 6px;
+        font-family: var(--mono);
+      }
+      .fileline {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 6px;
+        word-break: break-all;
+      }
+
+      /* ── Zona central: viewport ─────────────────────────────────────── */
+      .center {
+        flex: 1 1 auto;
+        background: var(--bg);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        min-width: 220px;
+      }
+      #viewport {
+        flex: 1;
+        width: 100%;
+        display: block;
+        cursor: grab;
+      }
+      #viewport:active {
+        cursor: grabbing;
+      }
+      .vpbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 14px;
+        background: var(--panel);
+        border-top: 1px solid var(--line);
+      }
+      .vpbar .pk {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--amber);
+        min-width: 120px;
+      }
+      .vpbar input[type="range"] {
+        flex: 1;
+      }
+      .vpbar .rd {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .vptools {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 4px 12px;
+        padding: 6px 14px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+        font-size: 11px;
+        font-family: var(--mono);
+        color: var(--muted);
+      }
+      .vptools label {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+      }
+      .vptools .sep {
+        width: 1px;
+        height: 16px;
+        background: var(--hair);
+      }
+      .vptools .btn.on {
+        background: var(--ink);
+        color: #fff;
+      }
+      .vplegend {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid var(--hair);
+        border-radius: 4px;
+        padding: 8px 12px;
+        font-size: 11px;
+        font-family: var(--mono);
+        color: var(--muted);
+        line-height: 1.7;
+        pointer-events: none;
+      }
+      .vplegend .sw {
+        display: inline-block;
+        width: 14px;
+        height: 8px;
+        border-radius: 2px;
+        margin-right: 6px;
+        vertical-align: middle;
+      }
+      #status {
+        position: absolute;
+        top: 10px;
+        left: 12px;
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid var(--hair);
+        border-radius: 4px;
+        padding: 6px 10px;
+        max-width: 52%;
+      }
+      #status.error {
+        color: var(--c-footprint);
+      }
+
+      /* ── Panel de resultados (cajetín + rótulas) ────────────────────── */
+      .cartouche {
+        padding: 10px 14px;
+        font-family: var(--mono);
+        font-size: 11px;
+        border-bottom: 1px solid var(--hair);
+      }
+      .cartouche .title {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        border-bottom: 1px solid var(--line2);
+        padding-bottom: 6px;
+        margin-bottom: 8px;
+      }
+      .cartouche .title b {
+        font-family: var(--sans);
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        color: var(--amber);
+      }
+      .cartouche .title span {
+        color: var(--faint);
+      }
+      .ctable {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 3px 14px;
+        align-content: start;
+      }
+      .ctable .k {
+        color: var(--muted);
+      }
+      .ctable .v {
+        color: var(--ink);
+        text-align: right;
+      }
+      .ctable .v.red {
+        color: var(--c-footprint);
+      }
+      .ctable .v.amber {
+        color: var(--c-kin-ink);
+      }
+      .cartouche .actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+      }
+      .jointsblock {
+        padding: 12px 14px 20px;
+      }
+      .jointsblock > h3 {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+
+      /* ── Diagrama de semianchos (full-width) ────────────────────────── */
+      .profilebar {
+        flex: 0 0 200px;
+        background: var(--panel);
+        border-top: 1px solid var(--hair);
+        padding: 8px 14px 4px;
+        min-height: 0;
+      }
+      .profilebar h3 {
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      #profile {
+        width: 100%;
+        height: calc(100% - 18px);
+        display: block;
+      }
+
+      /* ── Barra de estado (DESIGN_SPEC §4) ───────────────────────────── */
+      .statusbar {
+        flex: 0 0 26px;
+        display: flex;
+        align-items: center;
+        gap: 0;
+        padding: 0 12px;
+        background: var(--surface);
+        border-top: 1px solid var(--hair);
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+        overflow: hidden;
+        white-space: nowrap;
+      }
+      .statusbar .seg {
+        padding: 0 12px;
+        border-right: 1px solid var(--hair);
+      }
+      .statusbar .seg:first-child {
+        padding-left: 0;
+      }
+      .statusbar .seg.grow {
+        flex: 1;
+        border-right: none;
+        color: var(--faint);
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .statusbar .seg b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="menubar">
+        <span class="brand">BARRIDO</span>
+        <div class="mitem">
+          <button class="mbtn" aria-haspopup="true" data-i18n="menu.file">Archivo</button>
+          <div class="mdrop">
+            <button class="mopt" id="menuNew" data-i18n="file.new">Nuevo proyecto</button>
+            <button class="mopt" id="menuOpen" data-i18n="file.open">Abrir proyecto…</button>
+            <button class="mopt" id="menuSave" data-i18n="file.save">Guardar proyecto</button>
+            <div class="msep"></div>
+            <button class="mopt" id="btnImportVehJson" data-i18n="file.importVeh">
+              Cargar vehículo (JSON)
+            </button>
+            <button class="mopt" id="btnExportVehJson" data-i18n="file.exportVeh">
+              Guardar vehículo (JSON)
+            </button>
+            <input type="file" id="fileVehJson" accept=".json" hidden />
+            <input type="file" id="fileProject" accept=".json,.barrido.json" hidden />
+          </div>
+        </div>
+        <div class="mitem">
+          <button class="mbtn" aria-haspopup="true" data-i18n="menu.edit">Edición</button>
+          <div class="mdrop">
+            <button class="mopt" id="menuUndo" disabled data-i18n="edit.undo">
+              Deshacer&nbsp;&nbsp;Ctrl+Z
+            </button>
+            <button class="mopt" id="menuRedo" disabled data-i18n="edit.redo">
+              Rehacer&nbsp;&nbsp;Ctrl+Y
+            </button>
+          </div>
+        </div>
+        <div class="mitem">
+          <button class="mbtn" data-tab="veh" data-i18n="menu.vehicle">Vehículo</button>
+        </div>
+        <div class="mitem">
+          <button class="mbtn" data-tab="track" data-i18n="menu.track">Trazado</button>
+        </div>
+        <div class="mitem">
+          <button class="mbtn" aria-haspopup="true" data-i18n="menu.calc">Cálculo</button>
+          <div class="mdrop">
+            <button class="mopt" id="menuRun" data-i18n="calc.run">Calcular huella</button>
+            <button class="mopt" id="menuCancel" data-i18n="calc.cancel">Cancelar cálculo</button>
+          </div>
+        </div>
+        <div class="mitem">
+          <button class="mbtn" id="menuReports" aria-haspopup="true" data-i18n="menu.reports">
+            Informes
+          </button>
+          <div class="mdrop">
+            <button class="mopt" id="menuCsvOut" data-i18n="reports.csv">
+              Exportar perfil CSV
+            </button>
+            <button class="mopt" id="menuDxfOut" data-i18n="reports.dxf">
+              Exportar huella DXF
+            </button>
+            <button class="mopt" id="menuClashOut" data-i18n="reports.clash">
+              Informe de gálibo CSV
+            </button>
+          </div>
+        </div>
+        <div class="mitem">
+          <button class="mbtn" aria-haspopup="true" data-i18n="menu.help">Ayuda</button>
+          <div class="mdrop">
+            <div class="mopt-static" data-i18n="help.text">
+              BARRIDO — contra-cálculo de barrido para material rodante tranviario. Unidades
+              internas en metros y radianes. UIC 505-1 / EN 15273 son referencias no certificadas:
+              ver hipótesis del modelo.
+            </div>
+          </div>
+        </div>
+        <div class="spacer"></div>
+        <span class="sub" id="appSub"
+          >Fase 4 — huella + envolvente cinemática + clash check + comparación UIC 505</span
+        >
+        <select id="langSel" class="langsel" title="Idioma" aria-label="Idioma / Language / Langue">
+          <option value="es" selected>ES</option>
+          <option value="fr">FR</option>
+          <option value="en">EN</option>
+        </select>
+        <button class="railbtn" id="collapse-left" title="Panel de entrada" data-i18n="rail.input">
+          ▤ Entrada
+        </button>
+        <button
+          class="railbtn"
+          id="collapse-right"
+          title="Panel de resultados"
+          data-i18n="rail.results"
+        >
+          Resultados ▤
+        </button>
+      </div>
+
+      <div class="banner" id="recoverBanner" hidden>
+        <span data-i18n="banner.msg">Se encontró una sesión anterior sin guardar.</span>
+        <span class="spacer"></span>
+        <button class="btn small" id="btnRecover" data-i18n="banner.recover">Recuperar</button>
+        <button class="btn small" id="btnDiscardRecover" data-i18n="banner.discard">
+          Descartar
+        </button>
+      </div>
+
+      <div class="mid" id="mid">
+        <section class="panel-left" aria-label="Panel de entrada">
+          <div class="tabs" role="tablist">
+            <button class="tab" data-tab="veh" role="tab" data-i18n="tab.veh">Vehículo</button>
+            <button class="tab" data-tab="track" role="tab" data-i18n="tab.track">Trazado</button>
+            <button class="tab" data-tab="reglas" role="tab" data-i18n="tab.reglas">Reglas</button>
+            <button class="tab" data-tab="obs" role="tab" data-i18n="tab.obs">Obstáculos</button>
+            <span class="tabspacer"></span>
+          </div>
+          <div class="panel-body">
+            <div class="tabpanel" data-tab="veh" role="tabpanel">
+              <div class="sec">
+                <h2 data-i18n="sec.vehicle">Vehículo</h2>
+                <div class="row">
+                  <label for="vehPreset" data-i18n="lbl.preset">Preset</label
+                  ><select id="vehPreset"></select>
+                </div>
+                <div class="row">
+                  <label for="wheelbase" data-i18n="lbl.wheelbase">Empate de bogie</label
+                  ><input id="wheelbase" type="number" step="0.05" min="1" /><span class="u"
+                    >m</span
+                  >
+                </div>
+                <div class="row">
+                  <label for="mirEnabled" data-i18n="lbl.mirrors">Espejos / cámaras</label>
+                  <input type="checkbox" id="mirEnabled" style="flex: 0 0 auto" />
+                  <input
+                    id="mirProt"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    title="Protrusión lateral (m)"
+                  />
+                  <input
+                    id="mirOff"
+                    type="number"
+                    step="0.05"
+                    min="0"
+                    title="Distancia desde testero (m)"
+                  />
+                  <span class="u">m</span>
+                </div>
+                <div class="hint" data-i18n-html="hint.mirrors">
+                  Casilla: activar. Campos: protrusión lateral y distancia desde el testero de
+                  cabina.
+                </div>
+                <div id="schematic" style="margin-top: 12px"></div>
+                <div id="modules" style="margin-top: 10px"></div>
+                <button class="btn" id="btnAddMod" style="width: 100%" data-i18n="btn.addMod">
+                  + Añadir módulo
+                </button>
+                <div class="err" id="vehErrors"></div>
+              </div>
+            </div>
+
+            <div class="tabpanel" data-tab="track" role="tabpanel">
+              <div class="sec">
+                <h2 data-i18n="sec.track">Trazado</h2>
+                <div class="row">
+                  <label for="trackPreset" data-i18n="lbl.trackPreset">Preset de prueba</label
+                  ><select id="trackPreset"></select>
+                </div>
+                <button class="btn" id="btnDxf" style="width: 100%" data-i18n="btn.importDxf">
+                  Importar trazado DXF…
+                </button>
+                <input type="file" id="fileDxf" accept=".dxf" hidden />
+                <button
+                  class="btn"
+                  id="btnLandxml"
+                  style="width: 100%; margin-top: 4px"
+                  data-i18n="btn.importLandxml"
+                >
+                  Importar alignment LandXML…
+                </button>
+                <input type="file" id="fileLandxml" accept=".xml,.landxml" hidden />
+                <div class="row" id="dxfLayerRow" style="display: none">
+                  <label for="dxfLayer" data-i18n="lbl.axisLayer">Capa del eje</label
+                  ><select id="dxfLayer"></select>
+                </div>
+                <div class="row" id="dxfFlipRow" style="display: none">
+                  <label for="dxfFlip" data-i18n="lbl.flip">Invertir sentido de marcha</label
+                  ><input type="checkbox" id="dxfFlip" style="flex: 0 0 auto" />
+                </div>
+                <div class="fileline" id="trackInfo"></div>
+                <div class="warn" id="trackWarnings"></div>
+                <div class="hint" data-i18n-html="hint.track">
+                  Soporta LINE, ARC, LWPOLYLINE (con bulge), POLYLINE y SPLINE (muestreo NURBS).
+                  Aplica $INSUNITS (convierte a metros y avisa). Con varias capas, elige la del eje;
+                  el sentido de marcha es el de dibujo salvo que se invierta.
+                </div>
+              </div>
+            </div>
+
+            <div class="tabpanel" data-tab="reglas" role="tabpanel">
+              <div class="sec">
+                <h2 data-i18n="sec.kin">Envolvente cinemática</h2>
+                <div class="row">
+                  <label for="kinEnabled" data-i18n="lbl.enable">Activar</label
+                  ><input type="checkbox" id="kinEnabled" style="flex: 0 0 auto" />
+                </div>
+                <div id="kinFields" style="display: none">
+                  <div class="grid2">
+                    <div class="f">
+                      <label style="font-size: 10px; color: var(--faint)" data-i18n="kin.h"
+                        >ALTURA CÁLCULO h [m]</label
+                      ><input type="number" step="0.1" id="kin_h" />
+                    </div>
+                    <div class="f">
+                      <label style="font-size: 10px; color: var(--faint)" data-i18n="kin.e"
+                        >ENTRE RODADURAS e [m]</label
+                      ><input type="number" step="0.05" id="kin_e" />
+                    </div>
+                    <div class="f">
+                      <label style="font-size: 10px; color: var(--faint)" data-i18n="kin.dMax"
+                        >PERALTE MÁX D [mm]</label
+                      ><input type="number" step="5" id="kin_dMax" />
+                    </div>
+                    <div class="f">
+                      <label style="font-size: 10px; color: var(--faint)" data-i18n="kin.rFull"
+                        >R PERALTE PLENO [m]</label
+                      ><input type="number" step="5" id="kin_rFull" />
+                    </div>
+                    <div class="f">
+                      <label style="font-size: 10px; color: var(--faint)" data-i18n="kin.iMax"
+                        >INSUFICIENCIA I [mm]</label
+                      ><input type="number" step="5" id="kin_iMax" />
+                    </div>
+                    <div class="f">
+                      <label style="font-size: 10px; color: var(--faint)" data-i18n="kin.sigma"
+                        >SOUPLESSE σ [–]</label
+                      ><input type="number" step="0.01" id="kin_sigma" />
+                    </div>
+                    <div class="f">
+                      <label style="font-size: 10px; color: var(--faint)" data-i18n="kin.hRoll"
+                        >CENTRO BALANCEO h₀ [m]</label
+                      ><input type="number" step="0.05" id="kin_hRoll" />
+                    </div>
+                    <div class="f">
+                      <label style="font-size: 10px; color: var(--faint)" data-i18n="kin.q"
+                        >JUEGOS LATERALES q [mm]</label
+                      ><input type="number" step="1" id="kin_q" />
+                    </div>
+                    <div class="f">
+                      <label style="font-size: 10px; color: var(--faint)" data-i18n="kin.tAlign"
+                        >TOL. ALINEACIÓN [mm]</label
+                      ><input type="number" step="1" id="kin_tAlign" />
+                    </div>
+                    <div class="f">
+                      <label style="font-size: 10px; color: var(--faint)" data-i18n="kin.tCant"
+                        >TOL. PERALTE [mm]</label
+                      ><input type="number" step="1" id="kin_tCant" />
+                    </div>
+                  </div>
+                  <div class="row">
+                    <label for="kin_stopped" data-i18n="lbl.stopped">Vehículo parado en curva</label
+                    ><input type="checkbox" id="kin_stopped" style="flex: 0 0 auto" />
+                  </div>
+                  <button
+                    class="btn small"
+                    id="btnCant"
+                    style="width: 100%; margin-top: 4px"
+                    data-i18n="btn.importCant"
+                  >
+                    Importar peralte real (CSV pk;D_mm)…
+                  </button>
+                  <input type="file" id="fileCant" accept=".csv,.txt" hidden />
+                  <div class="fileline" id="cantInfo"></div>
+                  <button
+                    class="btn small"
+                    id="btnSpeed"
+                    style="width: 100%; margin-top: 4px"
+                    data-i18n="btn.importSpeed"
+                  >
+                    Importar velocidad (CSV pk;v_kmh)…
+                  </button>
+                  <input type="file" id="fileSpeed" accept=".csv,.txt" hidden />
+                  <div class="fileline" id="speedInfo"></div>
+                </div>
+                <div class="hint" data-i18n-html="hint.kin">
+                  Reglas cuasi-estáticas simplificadas: peralte según curvatura local D(s)=D·min(1,
+                  R_pleno/R), lean h·D/e hacia el interior, balanceo σ·(E ó I)/e·(h−h₀), más juegos
+                  y tolerancias a ambos lados.
+                  <b>No es una implementación certificada de EN 15273</b>: sustituir por las reglas
+                  de gálibo del proyecto.
+                </div>
+              </div>
+
+              <div class="sec">
+                <h2 data-i18n="sec.uic">Comparación UIC 505-1</h2>
+                <div class="row">
+                  <label for="uicEnabled" data-i18n="lbl.enable">Activar</label
+                  ><input type="checkbox" id="uicEnabled" style="flex: 0 0 auto" />
+                </div>
+                <div id="uicFields" style="display: none">
+                  <div class="grid2">
+                    <div class="f">
+                      <label style="font-size: 10px; color: var(--faint)" data-i18n="uic.a"
+                        >EMPATTEMENT a [m]</label
+                      ><input type="number" step="0.1" id="uic_a" />
+                    </div>
+                    <div class="f">
+                      <label style="font-size: 10px; color: var(--faint)" data-i18n="uic.na"
+                        >VOLADIZO n_a [m]</label
+                      ><input type="number" step="0.1" id="uic_na" />
+                    </div>
+                    <div class="f">
+                      <label style="font-size: 10px; color: var(--faint)" data-i18n="uic.p"
+                        >EMPATE BOGIE p [m]</label
+                      ><input type="number" step="0.05" id="uic_p" />
+                    </div>
+                    <div class="f">
+                      <label style="font-size: 10px; color: var(--faint)" data-i18n="uic.b"
+                        >SEMIANCHO b [m]</label
+                      ><input type="number" step="0.005" id="uic_b" />
+                    </div>
+                  </div>
+                  <button
+                    class="btn small"
+                    id="btnUicAuto"
+                    style="width: 100%"
+                    data-i18n="btn.uicAuto"
+                  >
+                    Derivar del vehículo actual
+                  </button>
+                </div>
+                <div class="hint" data-i18n-html="hint.uic">
+                  Salientes geométricos clásicos del vehículo equivalente de dos pivotes: interior
+                  a²/8R + p²/8R, exterior (a·n+n²)/2R − p²/8R, con R local por PK. Comparado contra
+                  la huella <b>geométrica</b> simulada. UIC 505-1 excluye tranvías y asume cuerpo
+                  rígido entre pivotes; sus fórmulas son de primer orden (en R&lt;50 m difieren ~1–2
+                  cm del cálculo exacto).
+                </div>
+              </div>
+
+              <div class="sec">
+                <h2 data-i18n="sec.calc">Cálculo</h2>
+                <div class="row">
+                  <label for="simStep" data-i18n="lbl.simStep">Paso de simulación</label
+                  ><input
+                    id="simStep"
+                    type="number"
+                    step="0.05"
+                    min="0.05"
+                    max="1"
+                    value="0.25"
+                  /><span class="u">m</span>
+                </div>
+                <div class="row">
+                  <label for="bothDirs" data-i18n="lbl.bothDirs">Analizar ambos sentidos</label
+                  ><input type="checkbox" id="bothDirs" style="flex: 0 0 auto" />
+                </div>
+                <div class="hint" data-i18n-html="hint.both">
+                  Resuelve el barrido de ida y de vuelta y une las envolventes. Necesario en
+                  vehículos asimétricos o trazados con contracurvas, donde cada sentido genera una
+                  huella distinta.
+                </div>
+                <button class="btn primary" id="btnRun" style="width: 100%" data-i18n="calc.run">
+                  Calcular huella
+                </button>
+                <div id="progressWrap" style="display: none; margin-top: 8px">
+                  <div class="progress">
+                    <div id="progressBar" class="progress-bar"></div>
+                  </div>
+                  <button
+                    class="btn small"
+                    id="btnCancel"
+                    style="width: 100%; margin-top: 6px"
+                    data-i18n="calc.cancel"
+                  >
+                    Cancelar cálculo
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="tabpanel" data-tab="obs" role="tabpanel">
+              <div class="sec">
+                <h2 data-i18n="sec.obs">Obstáculos · clash check</h2>
+                <button class="btn" id="btnObs" style="width: 100%" data-i18n="btn.importObs">
+                  Importar obstáculos DXF…
+                </button>
+                <input type="file" id="fileObs" accept=".dxf" hidden />
+                <div class="fileline" id="obsInfo"></div>
+                <div class="row" style="margin-top: 8px">
+                  <label for="reqMargin" data-i18n="lbl.reqMargin">Margen requerido</label
+                  ><input id="reqMargin" type="number" step="5" min="0" value="50" /><span class="u"
+                    >mm</span
+                  >
+                </div>
+                <button
+                  class="btn small"
+                  id="btnObsClear"
+                  style="display: none"
+                  data-i18n="btn.obsClear"
+                >
+                  Quitar obstáculos
+                </button>
+                <div class="hint" data-i18n-html="hint.obs">
+                  Bordes de andén, postes, fachadas… como polilíneas/líneas en el mismo sistema de
+                  coordenadas que el trazado. El margen se mide contra la envolvente cinemática si
+                  está activa; si no, contra la geométrica.
+                </div>
+              </div>
+
+              <div class="sec">
+                <h2 data-i18n="sec.hyp">Hipótesis del modelo</h2>
+                <div class="hint" data-i18n-html="hint.hyp">
+                  Pivotes de bogie sobre el eje de vía · caja de módulo bogie alineada con la
+                  secante local (empate) · módulos suspendidos como cuerda rígida entre
+                  articulaciones · sin balanceo, peralte, juegos ni tolerancias (Fase 3).
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="gutter" id="gutter-left" role="separator" aria-orientation="vertical"></div>
+
+        <main class="center">
+          <div class="vptools">
+            <label
+              ><input type="checkbox" id="layFootprint" checked /><span data-i18n="lay.footprint"
+                >huella</span
+              ></label
+            >
+            <label
+              ><input type="checkbox" id="layKin" checked /><span data-i18n="lay.kin"
+                >cinemática</span
+              ></label
+            >
+            <label
+              ><input type="checkbox" id="layUic" checked /><span data-i18n="lay.uic"
+                >UIC</span
+              ></label
+            >
+            <label
+              ><input type="checkbox" id="layObs" checked /><span data-i18n="lay.obs"
+                >obstáculos</span
+              ></label
+            >
+            <label
+              ><input type="checkbox" id="layVeh" checked /><span data-i18n="lay.veh"
+                >vehículo</span
+              ></label
+            >
+            <span class="sep"></span>
+            <label
+              ><input type="checkbox" id="vpGrid" checked /><span data-i18n="tool.grid"
+                >rejilla</span
+              ></label
+            >
+            <label
+              ><input type="checkbox" id="vpDark" /><span data-i18n="tool.dark"
+                >fondo oscuro</span
+              ></label
+            >
+            <span class="sep"></span>
+            <button class="btn small" id="btnMeasure" data-i18n="btn.measure">Medir (M)</button>
+            <button class="btn small" id="btnPngOut">PNG</button>
+            <button class="btn small" id="btnSvgOut">SVG</button>
+          </div>
+          <canvas id="viewport"></canvas>
+          <div id="status"></div>
+          <div class="vplegend">
+            <span
+              class="sw"
+              style="background: rgba(198, 40, 40, 0.15); border: 1px solid #c62828"
+            ></span
+            ><span data-i18n="leg.footprint">huella barrida</span><br />
+            <span
+              class="sw"
+              style="background: transparent; border-bottom: 2px dashed #5a6470"
+            ></span
+            ><span data-i18n="leg.axis">eje de vía</span><br />
+            <span
+              class="sw"
+              style="background: rgba(21, 101, 192, 0.16); border: 1px solid #1565c0"
+            ></span
+            ><span data-i18n="leg.vehicle">vehículo</span><br />
+            <span
+              class="sw"
+              style="background: rgba(120, 131, 143, 0.28); border: 1px solid #78838f"
+            ></span
+            ><span data-i18n="leg.fuelle">fuelle</span><br />
+            <span
+              class="sw"
+              style="background: rgba(184, 134, 11, 0.14); border: 1px dashed #b8860b"
+            ></span
+            ><span data-i18n="leg.kin">envolv. cinemática</span><br />
+            <span
+              class="sw"
+              style="background: transparent; border-bottom: 2px solid #1a1d21"
+            ></span
+            ><span data-i18n="leg.obstacles">obstáculos</span><br />
+            <span
+              class="sw"
+              style="background: #c62828; border-radius: 50%; width: 8px; height: 8px"
+            ></span
+            ><span data-i18n="leg.invasion">invasión de gálibo</span>
+          </div>
+          <div class="vpbar">
+            <button class="btn small" id="btnPlay" data-i18n="btn.play">▶ Reproducir</button>
+            <button class="btn small" id="btnFit" data-i18n="btn.fit">Encuadrar</button>
+            <span class="pk" id="pkLabel">PK —</span>
+            <input
+              type="range"
+              id="scrub"
+              min="0"
+              max="100"
+              value="0"
+              step="1"
+              data-i18n-aria-label="scrub.label"
+              aria-label="Posición de reproducción (PK)"
+            />
+            <span class="rd" id="vpReadout"></span>
+            <span class="rd" id="vpMeasure"></span>
+          </div>
+        </main>
+
+        <div class="gutter" id="gutter-right" role="separator" aria-orientation="vertical"></div>
+
+        <section class="panel-right" aria-label="Panel de resultados">
+          <div class="panel-head">
+            <span data-i18n="panel.results">Resultados</span><span class="spacer"></span
+            ><span id="cartDate"></span>
+          </div>
+          <div class="panel-body" style="padding: 0">
+            <div class="cartouche">
+              <div class="title"><b data-i18n="cart.title">CAJETÍN DE RESULTADOS</b></div>
+              <div class="ctable" id="cartTable"></div>
+              <div class="actions">
+                <button class="btn small" id="btnDxfOut" disabled data-i18n="btn.dxfOut">
+                  Exportar huella DXF
+                </button>
+                <button class="btn small" id="btnCsvOut" disabled data-i18n="btn.csvOut">
+                  Exportar perfil CSV
+                </button>
+                <button
+                  class="btn small"
+                  id="btnClashOut"
+                  disabled
+                  style="display: none"
+                  data-i18n="btn.clashOut"
+                >
+                  Informe gálibo CSV
+                </button>
+              </div>
+            </div>
+            <div class="jointsblock">
+              <h3 data-i18n="joints.title">Rótulas y fuelles</h3>
+              <div id="joints"></div>
+              <div class="hint" data-i18n-html="hint.joints">
+                Tipo <b>libre</b>: pivote sin control de lazo (cuerda entre articulaciones). Tipo
+                <b>rígida</b>: bloquea el giro (los módulos se mueven solidarios); no admisible
+                aguas arriba de un bogie. El hueco de testeros lo cubre el fuelle, incluido en la
+                huella.
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="profilebar" id="profileWrap">
+        <h3 data-i18n="profile.title">Semianchos barridos respecto al eje · por PK</h3>
+        <canvas id="profile"></canvas>
+      </div>
+
+      <div class="statusbar">
+        <span class="seg"
+          ><span data-i18n="sb.file">Fichero</span> <b id="statusBarFile">—</b></span
+        >
+        <span class="seg" id="statusBarUnits" data-i18n="sb.units">metros · radianes</span>
+        <span class="seg"><b id="statusBarSteps">—</b></span>
+        <span class="seg"><b id="statusBarTime">—</b></span>
+        <span class="seg grow" id="statusBarHyp">—</span>
+        <span class="seg" id="statusBarVersion">—</span>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

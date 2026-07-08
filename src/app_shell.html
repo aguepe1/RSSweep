@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Barrido — sweep analysis para tranvías</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#12161c; --panel:#191f27; --panel2:#202a36; --line:#2b3542; --line2:#3a4757;
+  --ink:#e7ecf2; --muted:#8b98a6; --faint:#5b6875;
+  --amber:#f5a623; --amber-dim:#8a6216; --red:#ef5350; --cyan:#4fc3dc; --green:#57b26a;
+  --mono:'IBM Plex Mono',ui-monospace,'Cascadia Code',Consolas,monospace;
+  --sans:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:13px;overflow:hidden}
+button{font-family:var(--sans);cursor:pointer}
+input,select{font-family:var(--mono);font-size:12px;background:var(--bg);color:var(--ink);
+  border:1px solid var(--line);border-radius:4px;padding:4px 6px;width:100%}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
+input[type=checkbox]{width:auto}
+input[type=range]{padding:0;accent-color:var(--amber)}
+
+.app{display:grid;grid-template-rows:46px 1fr 232px;grid-template-columns:352px 1fr;
+  height:100vh;gap:1px;background:var(--line)}
+header{grid-column:1/3;background:var(--panel);display:flex;align-items:center;gap:14px;padding:0 16px}
+header h1{font-size:15px;font-weight:600;letter-spacing:.04em}
+header h1 b{color:var(--amber);font-weight:600}
+header .sub{color:var(--muted);font-size:11px;font-family:var(--mono)}
+header .spacer{flex:1}
+.btn{background:var(--panel2);border:1px solid var(--line2);color:var(--ink);
+  border-radius:4px;padding:6px 12px;font-size:12px;font-weight:500;letter-spacing:.02em}
+.btn:hover{border-color:var(--amber);color:var(--amber)}
+.btn.primary{background:var(--amber);border-color:var(--amber);color:#14161a;font-weight:600}
+.btn.primary:hover{filter:brightness(1.1);color:#14161a}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.small{padding:3px 8px;font-size:11px}
+
+aside{background:var(--panel);overflow-y:auto;padding:14px 14px 40px}
+aside::-webkit-scrollbar{width:8px}
+aside::-webkit-scrollbar-thumb{background:var(--line2);border-radius:4px}
+.sec{margin-bottom:22px}
+.sec>h2{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--amber);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.sec>h2::after{content:"";flex:1;height:1px;background:var(--line)}
+.row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+.row label{flex:0 0 148px;color:var(--muted);font-size:12px}
+.row .u{color:var(--faint);font-family:var(--mono);font-size:11px;flex:0 0 22px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+
+.mod{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--cyan);
+  border-radius:5px;padding:9px 10px;margin-bottom:8px}
+.mod.susp{border-left-color:var(--faint)}
+.mod .head{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.mod .head input{width:52px}
+.mod .head select{width:110px}
+.mod .head .tools{margin-left:auto;display:flex;gap:3px}
+.mod .head .tools button{background:none;border:1px solid transparent;color:var(--muted);
+  border-radius:3px;padding:1px 5px;font-size:12px;font-family:var(--mono)}
+.mod .head .tools button:hover{color:var(--amber);border-color:var(--line2)}
+.mod .fields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.mod .fields .f label{display:block;font-size:10px;color:var(--faint);margin-bottom:2px;
+  letter-spacing:.04em}
+.mod .fields.wide{grid-template-columns:1fr 1fr 1fr}
+.hint{color:var(--faint);font-size:11px;line-height:1.45;margin-top:6px}
+.joint{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--amber);
+  border-radius:5px;padding:8px 10px;margin-bottom:8px}
+.joint.rigida{border-left-color:var(--red)}
+.joint.bisectriz{border-left-color:var(--green)}
+.joint .head{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.joint .head b{font-family:var(--mono);font-size:11px;color:var(--ink);font-weight:500}
+.joint .head select{width:96px;margin-left:auto}
+.joint .fields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.joint .fields .f label{display:block;font-size:10px;color:var(--faint);margin-bottom:2px;letter-spacing:.04em}
+.warn{color:var(--amber);font-size:11px;line-height:1.5;margin-top:6px;font-family:var(--mono)}
+.err{color:var(--red);font-size:11px;line-height:1.5;margin-top:6px;font-family:var(--mono)}
+.fileline{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px;word-break:break-all}
+
+main{background:var(--bg);position:relative;display:flex;flex-direction:column;min-width:0}
+#viewport{flex:1;width:100%;display:block;cursor:grab}
+#viewport:active{cursor:grabbing}
+.vpbar{display:flex;align-items:center;gap:12px;padding:8px 14px;background:var(--panel);
+  border-top:1px solid var(--line)}
+.vpbar .pk{font-family:var(--mono);font-size:12px;color:var(--amber);min-width:120px}
+.vpbar input[type=range]{flex:1}
+.vplegend{position:absolute;top:10px;right:12px;background:rgba(25,31,39,.88);
+  border:1px solid var(--line);border-radius:5px;padding:8px 12px;font-size:11px;
+  font-family:var(--mono);color:var(--muted);line-height:1.7}
+.vplegend .sw{display:inline-block;width:14px;height:8px;border-radius:2px;margin-right:6px;
+  vertical-align:middle}
+#status{position:absolute;top:10px;left:12px;font-family:var(--mono);font-size:11px;
+  color:var(--muted);background:rgba(25,31,39,.88);border:1px solid var(--line);
+  border-radius:5px;padding:6px 10px;max-width:52%}
+#status.error{color:var(--red)}
+
+footer{grid-column:1/3;background:var(--panel);display:grid;grid-template-columns:1fr 420px;gap:1px}
+#profileWrap{background:var(--panel);padding:8px 10px 4px;min-width:0}
+#profileWrap h3{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+  margin-bottom:4px}
+#profile{width:100%;height:calc(100% - 18px);display:block}
+.cartouche{background:var(--panel);border-left:1px solid var(--line);padding:10px 14px;
+  font-family:var(--mono);font-size:11px;display:flex;flex-direction:column}
+.cartouche .title{display:flex;justify-content:space-between;align-items:baseline;
+  border-bottom:1px solid var(--line2);padding-bottom:6px;margin-bottom:8px}
+.cartouche .title b{font-family:var(--sans);font-size:12px;letter-spacing:.08em;color:var(--amber)}
+.cartouche .title span{color:var(--faint)}
+.ctable{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;flex:1;align-content:start;overflow-y:auto;min-height:0}
+.ctable .k{color:var(--muted)}
+.ctable .v{color:var(--ink);text-align:right}
+.ctable .v.red{color:var(--red)} .ctable .v.amber{color:var(--amber)}
+.cartouche .actions{display:flex;gap:8px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1><b>BARRIDO</b> · sweep analysis para tranvías</h1>
+    <span class="sub">Fase 4 — huella + envolvente cinemática + clash check + comparación UIC 505</span>
+    <div class="spacer"></div>
+    <button class="btn" id="btnImportVehJson">Cargar vehículo (JSON)</button>
+    <button class="btn" id="btnExportVehJson">Guardar vehículo (JSON)</button>
+    <input type="file" id="fileVehJson" accept=".json" hidden>
+  </header>
+
+  <aside>
+    <div class="sec">
+      <h2>Vehículo</h2>
+      <div class="row"><label>Preset</label><select id="vehPreset"></select></div>
+      <div class="row"><label>Empate de bogie</label><input id="wheelbase" type="number" step="0.05" min="1"><span class="u">m</span></div>
+      <div class="row"><label>Espejos / cámaras</label>
+        <input type="checkbox" id="mirEnabled" style="flex:0 0 auto">
+        <input id="mirProt" type="number" step="0.01" min="0" title="Protrusión lateral (m)">
+        <input id="mirOff" type="number" step="0.05" min="0" title="Distancia desde testero (m)">
+        <span class="u">m</span></div>
+      <div class="hint">Casilla: activar. Campos: protrusión lateral y distancia desde el testero de cabina.</div>
+      <div id="modules" style="margin-top:12px"></div>
+      <button class="btn" id="btnAddMod" style="width:100%">+ Añadir módulo</button>
+      <div class="err" id="vehErrors"></div>
+    </div>
+
+    <div class="sec">
+      <h2>Rótulas y fuelles</h2>
+      <div id="joints"></div>
+      <div class="hint">Tipo <b>libre</b>: pivote sin control de lazo (cuerda entre articulaciones). Tipo <b>rígida</b>: bloquea el giro (los módulos se mueven solidarios); no admisible aguas arriba de un bogie. El hueco de testeros lo cubre el fuelle, incluido en la huella.</div>
+    </div>
+
+    <div class="sec">
+      <h2>Trazado</h2>
+      <div class="row"><label>Preset de prueba</label><select id="trackPreset"></select></div>
+      <button class="btn" id="btnDxf" style="width:100%">Importar trazado DXF…</button>
+      <input type="file" id="fileDxf" accept=".dxf" hidden>
+      <div class="fileline" id="trackInfo"></div>
+      <div class="warn" id="trackWarnings"></div>
+      <div class="hint">Soporta LINE, ARC, LWPOLYLINE (con bulge) y POLYLINE. Las splines deben convertirse a polilínea en CAD. El eje debe ser una cadena continua; el sentido de marcha es el de dibujo.</div>
+    </div>
+
+    <div class="sec">
+      <h2>Envolvente cinemática</h2>
+      <div class="row"><label>Activar</label><input type="checkbox" id="kinEnabled" style="flex:0 0 auto"></div>
+      <div id="kinFields" style="display:none">
+        <div class="grid2">
+          <div class="f"><label style="font-size:10px;color:var(--faint)">ALTURA CÁLCULO h [m]</label><input type="number" step="0.1" id="kin_h"></div>
+          <div class="f"><label style="font-size:10px;color:var(--faint)">ENTRE RODADURAS e [m]</label><input type="number" step="0.05" id="kin_e"></div>
+          <div class="f"><label style="font-size:10px;color:var(--faint)">PERALTE MÁX D [mm]</label><input type="number" step="5" id="kin_dMax"></div>
+          <div class="f"><label style="font-size:10px;color:var(--faint)">R PERALTE PLENO [m]</label><input type="number" step="5" id="kin_rFull"></div>
+          <div class="f"><label style="font-size:10px;color:var(--faint)">INSUFICIENCIA I [mm]</label><input type="number" step="5" id="kin_iMax"></div>
+          <div class="f"><label style="font-size:10px;color:var(--faint)">SOUPLESSE σ [–]</label><input type="number" step="0.01" id="kin_sigma"></div>
+          <div class="f"><label style="font-size:10px;color:var(--faint)">CENTRO BALANCEO h₀ [m]</label><input type="number" step="0.05" id="kin_hRoll"></div>
+          <div class="f"><label style="font-size:10px;color:var(--faint)">JUEGOS LATERALES q [mm]</label><input type="number" step="1" id="kin_q"></div>
+          <div class="f"><label style="font-size:10px;color:var(--faint)">TOL. ALINEACIÓN [mm]</label><input type="number" step="1" id="kin_tAlign"></div>
+          <div class="f"><label style="font-size:10px;color:var(--faint)">TOL. PERALTE [mm]</label><input type="number" step="1" id="kin_tCant"></div>
+        </div>
+        <div class="row"><label>Vehículo parado en curva</label><input type="checkbox" id="kin_stopped" style="flex:0 0 auto"></div>
+        <button class="btn small" id="btnCant" style="width:100%;margin-top:4px">Importar peralte real (CSV pk;D_mm)…</button>
+        <input type="file" id="fileCant" accept=".csv,.txt" hidden>
+        <div class="fileline" id="cantInfo"></div>
+      </div>
+      <div class="hint">Reglas cuasi-estáticas simplificadas: peralte según curvatura local D(s)=D·min(1, R_pleno/R), lean h·D/e hacia el interior, balanceo σ·(E ó I)/e·(h−h₀), más juegos y tolerancias a ambos lados. <b>No es una implementación certificada de EN 15273</b>: sustituir por las reglas de gálibo del proyecto.</div>
+    </div>
+
+    <div class="sec">
+      <h2>Comparación UIC 505-1</h2>
+      <div class="row"><label>Activar</label><input type="checkbox" id="uicEnabled" style="flex:0 0 auto"></div>
+      <div id="uicFields" style="display:none">
+        <div class="grid2">
+          <div class="f"><label style="font-size:10px;color:var(--faint)">EMPATTEMENT a [m]</label><input type="number" step="0.1" id="uic_a"></div>
+          <div class="f"><label style="font-size:10px;color:var(--faint)">VOLADIZO n_a [m]</label><input type="number" step="0.1" id="uic_na"></div>
+          <div class="f"><label style="font-size:10px;color:var(--faint)">EMPATE BOGIE p [m]</label><input type="number" step="0.05" id="uic_p"></div>
+          <div class="f"><label style="font-size:10px;color:var(--faint)">SEMIANCHO b [m]</label><input type="number" step="0.005" id="uic_b"></div>
+        </div>
+        <button class="btn small" id="btnUicAuto" style="width:100%">Derivar del vehículo actual</button>
+      </div>
+      <div class="hint">Salientes geométricos clásicos del vehículo equivalente de dos pivotes: interior a²/8R + p²/8R, exterior (a·n+n²)/2R − p²/8R, con R local por PK. Comparado contra la huella <b>geométrica</b> simulada. UIC 505-1 excluye tranvías y asume cuerpo rígido entre pivotes; sus fórmulas son de primer orden (en R&lt;50 m difieren ~1–2 cm del cálculo exacto).</div>
+    </div>
+
+    <div class="sec">
+      <h2>Obstáculos · clash check</h2>
+      <button class="btn" id="btnObs" style="width:100%">Importar obstáculos DXF…</button>
+      <input type="file" id="fileObs" accept=".dxf" hidden>
+      <div class="fileline" id="obsInfo"></div>
+      <div class="row" style="margin-top:8px"><label>Margen requerido</label><input id="reqMargin" type="number" step="5" min="0" value="50"><span class="u">mm</span></div>
+      <button class="btn small" id="btnObsClear" style="display:none">Quitar obstáculos</button>
+      <div class="hint">Bordes de andén, postes, fachadas… como polilíneas/líneas en el mismo sistema de coordenadas que el trazado. El margen se mide contra la envolvente cinemática si está activa; si no, contra la geométrica.</div>
+    </div>
+
+    <div class="sec">
+      <h2>Cálculo</h2>
+      <div class="row"><label>Paso de simulación</label><input id="simStep" type="number" step="0.05" min="0.05" max="1" value="0.25"><span class="u">m</span></div>
+      <button class="btn primary" id="btnRun" style="width:100%">Calcular huella</button>
+    </div>
+
+    <div class="sec">
+      <h2>Hipótesis del modelo</h2>
+      <div class="hint">Pivotes de bogie sobre el eje de vía · caja de módulo bogie alineada con la secante local (empate) · módulos suspendidos como cuerda rígida entre articulaciones · sin balanceo, peralte, juegos ni tolerancias (Fase 3).</div>
+    </div>
+  </aside>
+
+  <main>
+    <canvas id="viewport"></canvas>
+    <div id="status"></div>
+    <div class="vplegend">
+      <span class="sw" style="background:rgba(239,83,80,.35);border:1px solid #ef5350"></span>huella barrida<br>
+      <span class="sw" style="background:transparent;border-bottom:2px dashed #8b98a6"></span>eje de vía<br>
+      <span class="sw" style="background:rgba(79,195,220,.25);border:1px solid #4fc3dc"></span>vehículo<br>
+      <span class="sw" style="background:rgba(139,152,166,.30);border:1px solid #8b98a6"></span>fuelle<br>
+      <span class="sw" style="background:rgba(245,166,35,.15);border:1px dashed #f5a623"></span>envolv. cinemática<br>
+      <span class="sw" style="background:transparent;border-bottom:2px solid #e7ecf2"></span>obstáculos<br>
+      <span class="sw" style="background:#ef5350;border-radius:50%;width:8px;height:8px"></span>invasión de gálibo
+    </div>
+    <div class="vpbar">
+      <button class="btn small" id="btnPlay">▶ Reproducir</button>
+      <button class="btn small" id="btnFit">Encuadrar</button>
+      <span class="pk" id="pkLabel">PK —</span>
+      <input type="range" id="scrub" min="0" max="100" value="0" step="1">
+    </div>
+  </main>
+
+  <footer>
+    <div id="profileWrap">
+      <h3>Semianchos barridos respecto al eje · por PK</h3>
+      <canvas id="profile"></canvas>
+    </div>
+    <div class="cartouche">
+      <div class="title"><b>CAJETÍN DE RESULTADOS</b><span id="cartDate"></span></div>
+      <div class="ctable" id="cartTable"></div>
+      <div class="actions">
+        <button class="btn small" id="btnDxfOut" disabled>Exportar huella DXF</button>
+        <button class="btn small" id="btnCsvOut" disabled>Exportar perfil CSV</button>
+        <button class="btn small" id="btnClashOut" disabled style="display:none">Informe gálibo CSV</button>
+      </div>
+    </div>
+  </footer>
+</div>
+<script>
+/*__ENGINE__*/
+</script>
+<script>
+/*__UI__*/
+</script>
+</body>
+</html>
