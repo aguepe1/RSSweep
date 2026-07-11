@@ -40,7 +40,7 @@ function solveSteps(
       warm = null;
       continue;
     }
-    warm = { yaws: chain.yaws || null, sPivots: chain.sPivots };
+    warm = { yaws: chain.yaws || null, sFronts: chain.sFronts };
     const polys = footprint(v, chain);
     steps.push({ s1, chain, polys });
     chain.jointAngles.forEach((a, k) => {

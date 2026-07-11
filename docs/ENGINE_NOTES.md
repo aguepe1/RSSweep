@@ -34,7 +34,51 @@ al revés). En la UI, con varias capas se propone por defecto la capa de la cade
 e invertir el sentido; ambos re-unen sin re-parsear. Hipótesis: una única cadena de eje por
 capa seleccionada; el orden de unión es el de aparición en el fichero.
 
-**Vehículo.** Cadena de módulos `bogie` | `suspendido`. Reglas:
+**Vía de dos carriles y ancho `gauge` (E4-A1).** El motor trabaja SIEMPRE sobre el
+eje (línea media). Los dos carriles se dibujan a ±`gauge`/2 del eje por la normal de
+estación y son PRESENTACIÓN: para vía de ancho fijo el centro del eje montado sigue la
+línea media dentro del juego de pestaña (ya recogido en el término `q` de la envolvente
+cinemática, §3), de modo que representar "contacto en el riel" en lugar de "sobre el eje"
+NO cambia la trayectoria barrida ni ningún valor dorado. `gauge` por defecto 1.435 m
+(estándar); al importar la vía como dos carriles (E4-B1) se fija con la separación real
+medida entre ellos. Es honestidad declarada del modelo: los carriles ilustran la
+infraestructura, no re-calculan anchos.
+
+**Bastidor de bogie y ejes (E4-A2).** Presentación derivada, sin cálculo nuevo. Para
+cada bogie, la UI reconstruye del resultado de cadena su abscisa de pivote `sPivots[b]`
+y su empate `wheelbase` (o el del vehículo): las dos rodaduras están en `track.pos(s ±
+empate/2)` —exactamente los puntos que el motor usa para la secante del bogie (`bogiePose`,
+`chain.ts`)— y se dibujan como ejes transversales a ±`gauge`/2 (ruedas sobre el carril);
+el bastidor es el rectángulo empate × `bogieWidth` centrado en la cuerda entre rodaduras.
+`bogieWidth` es un campo opcional del módulo (por defecto `gauge + 0.2`), puramente
+gráfico. NO entra en la cadena ni en la envolvente: los valores dorados quedan intactos.
+
+**Colocación del bogie: vuelo y empate (E4-B3).** El «vuelo» (voladizo) de un bogie es
+la distancia del testero al EJE más próximo del bogie, medido al eje (no al pivote):
+`vuelo_delantero = pivote − empate/2` y `vuelo_trasero = longitud − pivote − empate/2`
+(para el biBogie se usan el pivote delantero y el trasero respectivamente). Así, para un
+módulo de un solo bogie, `vuelo_delantero + empate + vuelo_trasero = longitud`. La UI
+edita el vuelo o el pivote indistintamente (editar el vuelo recalcula el pivote,
+`pivote = vuelo ± empate/2`) y el esquema acota vuelo delantero, empate por bogie y vuelo
+trasero. Es geometría de ENTRADA/presentación: los campos escriben en `pivotFromFront` /
+`pivotFrontFromFront` / `pivotRearFromFront` / `wheelbase`, que son los que el motor ya
+consume, así que no cambia la cadena ni ningún valor dorado. `vehicleWarnings` añade
+AVISOS no bloqueantes (a diferencia de `validateVehicle`, cuyos errores impiden el
+barrido): empate no positivo, empate mayor que la longitud del módulo, y vuelo negativo
+(la rodadura queda fuera de la caja) — físicamente imposible pero se calcula igual, por
+eso es aviso y no error.
+
+**Import de dos carriles (E4-B1).** `railsToAxis` agrupa las cadenas del DXF en
+componentes conexas (proximidad de extremos, tol 5 cm), toma las dos más largas como
+carriles y, por cada vértice del carril mayor, proyecta sobre el otro: el punto medio
+traza el eje y la distancia mide la separación; `gauge` = mediana de las separaciones
+(robusta a los extremos, donde un carril puede sobresalir del otro). El eje resultante
+es exactamente la línea media que el motor ya asume para vía de ancho fijo, así que
+importar "dos carriles" cambia de dónde SALE el eje, no cómo se barre: la envolvente y
+los valores dorados no se ven afectados (los dorados usan presets/`trackFromSegments`,
+nunca el import DXF). Requiere dos componentes; con una sola devuelve `null` y avisa.
+
+**Vehículo.** Cadena de módulos `bogie` | `suspendido` | `biBogie`. Reglas:
 
 - Módulo **bogie pivotante**: pivote SOBRE el eje de vía en arco s_i; lazo de caja ψ_i =
   secante local sobre el empate (hipótesis: amortiguadores anti-lazo centran la caja)
@@ -43,6 +87,20 @@ capa seleccionada; el orden de unión es el de aparición en el fichero.
   sin libertad) y anclaje en el punto medio de la cuerda del empate → desplazado hacia
   el interior de la curva la sagitta p²/8R. Es el modelo correcto para vehículos de dos
   ejes y pseudo-bogies fijos, y el caso de validación exacta contra UIC 505 (§4.1).
+- Módulo **biBogie** (coche de dos bogies, E4-B2): cuerpo rígido único apoyado sobre DOS
+  pivotes (delantero a `pivotFrontFromFront`, trasero a `pivotRearFromFront`; separación
+  a = trasero − delantero). Cada pivote se ancla en el punto medio de la cuerda de SU
+  propio empate —idéntico al bogie rígido, NO al pivotante—: cada bogie está desplazado
+  hacia el interior de la curva la sagitta p²/8R de su empate. El pivote delantero se
+  sitúa en arco s_f; el trasero en s_r se resuelve por rigidez |P(s_f) − P(s_r)| = a
+  (bisección en dos fases ±0.9/±4.5 alrededor de g = s_f − a, refino a 1e-8). El rumbo
+  del cuerpo es la cuerda entre los dos anclajes (θ = atan2(P_f − P_r)). Como la longitud
+  de arco supera a la cuerda, s_f − s_r > a estrictamente. Es un cuerpo rígido sin lazo
+  libre: se excluye del solver de equilibrio (como el bogie rígido). Puede ir en cabeza o
+  cola (es guiado); una rótula rígida aguas arriba está PROHIBIDA (sobredeterminaría el
+  pivote), una bisectriz adyacente sí se permite. Los pivotes se dibujan FUERA del eje
+  (en sus anclajes reales): es presentación honesta y no altera la envolvente ni ningún
+  valor dorado.
 - Módulo **suspendido**: cuerda rígida entre la articulación trasera del cuerpo anterior
   y la delantera del siguiente bogie. La posición del siguiente pivote se resuelve con
   la restricción |A − B(s)| = ΣL_susp (bisección con bracketing en dos fases: ±0.9 m
@@ -154,6 +212,21 @@ arco R25 90° + clotoide 10 + recta 20 (L=99.27 m). step de simulación indicado
 | 4 Chicane R50                                                                         | 3.23 | 3.25  | 3.21 |
 | 5 R100                                                                                | 3.17 | 2.92  | 3.17 |
 | (*el 3mod tiene b=1.20; sus totales no son comparables en absoluto con los otros dos) |
+
+### 4.4 Coche de dos bogies (E4-B2, tolerancia 2 mm salvo indicado)
+
+Preset "Coche 2 bogies ~14 m": un único módulo biBogie, L=14, ancho 2.55, pivotes a 2.50
+y 11.50 (a = 9.0), empate 1.85. Trazado = recta 15 + arco R (90°) + recta 15.
+
+| Caso                                           | Valor motor              | Referencia / criterio                                         |
+| ---------------------------------------------- | ------------------------ | ------------------------------------------------------------- |
+| R25, semiancho interior                        | 1.7007                   | dorado analítico (bisección de rigidez, cuerda entre pivotes) |
+| R25, semiancho exterior                        | 1.7803                   | dorado analítico                                              |
+| R25, inset del pivote (anclaje vs eje) = p²/8R | 0.0171                   | (1.85²)/(8·25) = 17.1 mm (tolerancia 0.5 mm)                  |
+| R25, arco entre pivotes s_f − s_r              | > 9.0                    | > a (la cuerda) y < 9.5; estricto                             |
+| Equivalente UIC del biBogie: a / n_a / p / b   | 9.0 / 2.5 / 1.85 / 1.275 | dos pivotes → un solo cuerpo de a=9.0                         |
+| R15, robustez del fallback de rigidez          | s_f−s_r>9.0              | bisección converge en radio pequeño (fase ±4.5)               |
+| Reverso simétrico (recta+arco+recta)           | ±2 mm                    | interior/exterior iguales a la marcha directa                 |
 
 ## 5. Limitaciones conocidas (candidatas a E2)
 

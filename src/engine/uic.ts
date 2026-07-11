@@ -10,6 +10,10 @@ export function uicParamsFromVehicle(v: Vehicle): UicParams {
   const pivots: number[] = [];
   for (const m of mods) {
     if (m.type === "bogie") pivots.push(pos + (m.pivotFromFront ?? 0));
+    else if (m.type === "biBogie") {
+      pivots.push(pos + (m.pivotFrontFromFront ?? 0));
+      pivots.push(pos + (m.pivotRearFromFront ?? 0));
+    }
     pos += m.length;
   }
   const total = pos;

@@ -91,6 +91,24 @@ export function exportViewportSvg(canvas: HTMLCanvasElement): void {
     `<path d="${axis.join(" ")}" fill="none" stroke="${th.faint}" stroke-width="1.1" stroke-dasharray="6 5"/>`,
   );
 
+  // carriles a ±gauge/2 del eje (presentación; no alteran la envolvente)
+  if (layerOn("Rail")) {
+    const half = state.gauge / 2;
+    for (const side of [1, -1]) {
+      const rail: string[] = [];
+      for (let i = 0; i <= N; i++) {
+        const s = (state.track.length * i) / N;
+        const c = state.track.pos(s);
+        const hd = state.track.heading(s);
+        const nx = -Math.sin(hd),
+          ny = Math.cos(hd);
+        const p = w2s([c[0] + side * half * nx, c[1] + side * half * ny]);
+        rail.push(`${i ? "L" : "M"}${p[0].toFixed(2)} ${p[1].toFixed(2)}`);
+      }
+      parts.push(`<path d="${rail.join(" ")}" fill="none" stroke="${C.rail}" stroke-width="1.3"/>`);
+    }
+  }
+
   // obstáculos
   if (state.obstacles && layerOn("Obs"))
     for (const chain of state.obstacles) {

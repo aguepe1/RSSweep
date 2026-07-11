@@ -33,6 +33,10 @@ export interface AppState {
   track: Track | null;
   trackName: string;
   trackLen: number;
+  /** Ancho de vía (m) entre carriles. Presentación: dibuja los dos carriles a
+   *  ±gauge/2 del eje. No cambia la envolvente (el eje montado sigue la línea
+   *  media dentro del juego de pestaña ya modelado). Default estándar 1.435. */
+  gauge: number;
   /** Mapa de PK de proyecto (LandXML, E2-4). null ⇒ PK = longitud de arco. */
   pkMap: PkMap | null;
   sweep: SweepResult | null;
@@ -52,6 +56,7 @@ export const state: AppState = {
   track: null,
   trackName: "",
   trackLen: 0,
+  gauge: 1.435,
   pkMap: null,
   sweep: null,
   playIdx: 0,

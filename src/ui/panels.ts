@@ -4,6 +4,7 @@
 import {
   chamferContour,
   joinChains,
+  railsToAxis,
   obstaclesFromDXF,
   parseCantCSV,
   parseSpeedCSV,
@@ -84,9 +85,32 @@ function longestChainLayer(r: DXFParseResult): string | null {
 function applyDxf(): void {
   const r = dxfParse;
   if (!r) return;
+  const flip = $<HTMLInputElement>("dxfFlip").checked;
+  // Modo «dos carriles» (E4-B1): el eje es la línea media y el ancho de vía sale
+  // de la separación medida entre rieles.
+  if ($<HTMLInputElement>("dxfRails").checked) {
+    const { axis, gauge, warnings: w2 } = railsToAxis(r.chains, { flip });
+    const all = r.warnings.concat(w2);
+    if (!axis || axis.length < 2 || gauge == null) {
+      $("trackInfo").textContent = "";
+      $("trackWarnings").textContent = "";
+      setStatus(all.join(" ") || "No se pudieron derivar dos carriles del DXF.", true);
+      return;
+    }
+    state.track = trackFromPoints(axis);
+    state.trackName = dxfName;
+    state.pkMap = null;
+    state.gauge = gauge;
+    $<HTMLInputElement>("trackGauge").value = String(Math.round(gauge * 1000));
+    $("trackInfo").textContent =
+      `${dxfName} · 2 carriles · ancho de vía ${(gauge * 1000).toFixed(0)} mm · L = ${fmt(state.track.length, 2)} m`;
+    $("trackWarnings").textContent = all.join(" ");
+    $<HTMLSelectElement>("trackPreset").selectedIndex = -1;
+    run();
+    return;
+  }
   const layer =
     $("dxfLayerRow").style.display !== "none" ? $<HTMLSelectElement>("dxfLayer").value : undefined;
-  const flip = $<HTMLInputElement>("dxfFlip").checked;
   const { points, warnings: w2 } = joinChains(r.chains, {
     layer,
     chainLayers: r.chainLayers,
@@ -243,12 +267,19 @@ export function renderVehiclePanel(): void {
   v.modules.forEach((m, i) => {
     sumLen += m.length;
     const isBogie = m.type === "bogie";
+    const isBi = m.type === "biBogie";
     const isFirst = i === 0;
     const isLast = i === n - 1;
     const isCab = isFirst || isLast;
     const cham = chamferOf(m);
+    // Vuelos (E4-B3): distancia del testero al eje más próximo del bogie
+    // (vuelo = pivote ∓ empate/2). Derivados; editarlos recalcula el pivote.
+    const wb = m.wheelbase || v.wheelbase || 0;
+    const frontVuelo = (isBi ? (m.pivotFrontFromFront ?? 0) : (m.pivotFromFront ?? 0)) - wb / 2;
+    const rearVuelo =
+      m.length - (isBi ? (m.pivotRearFromFront ?? 0) : (m.pivotFromFront ?? 0)) - wb / 2;
     const tb = document.createElement("tbody");
-    tb.className = "mod" + (isBogie ? "" : " susp");
+    tb.className = "mod" + (m.type === "suspendido" ? " susp" : "");
     tb.dataset.idx = String(i);
     const main = document.createElement("tr");
     main.className = "mrow";
@@ -256,11 +287,18 @@ export function renderVehiclePanel(): void {
       <td><input value="${m.id || "M" + (i + 1)}" data-f="id" title="Identificador" aria-label="Identificador del módulo ${i + 1}"></td>
       <td><select data-f="type" aria-label="Tipo del módulo ${i + 1}">
         <option value="bogie" ${isBogie ? "selected" : ""}>bogie</option>
-        <option value="suspendido" ${!isBogie ? "selected" : ""}>suspendido</option>
+        <option value="suspendido" ${m.type === "suspendido" ? "selected" : ""}>suspendido</option>
+        <option value="biBogie" ${isBi ? "selected" : ""}>2 bogies</option>
       </select></td>
       <td><input type="number" step="0.05" min="0.5" value="${m.length}" data-f="length" aria-label="Longitud del módulo ${i + 1} (m)"></td>
       <td><input type="number" step="0.01" min="1" value="${m.width}" data-f="width" aria-label="Ancho del módulo ${i + 1} (m)"></td>
-      <td>${isBogie ? `<input type="number" step="0.05" min="0" value="${m.pivotFromFront}" data-f="pivotFromFront" aria-label="Pivote desde el frente del módulo ${i + 1} (m)">` : `<span class="mut">—</span>`}</td>
+      <td>${
+        isBi
+          ? `<input type="number" step="0.05" min="0" value="${m.pivotFrontFromFront ?? ""}" data-f="pivotFrontFromFront" aria-label="Pivote delantero desde el frente del módulo ${i + 1} (m)">`
+          : isBogie
+            ? `<input type="number" step="0.05" min="0" value="${m.pivotFromFront}" data-f="pivotFromFront" aria-label="Pivote desde el frente del módulo ${i + 1} (m)">`
+            : `<span class="mut">—</span>`
+      }</td>
       <td>${
         isCab
           ? `<select data-f="cabShape" aria-label="Forma del testero del módulo ${i + 1}">
@@ -296,10 +334,23 @@ export function renderVehiclePanel(): void {
           <option value="rigido" ${m.bogieType === "rigido" ? "selected" : ""}>rígido</option>
         </select></div>
         <div class="f"><label>EMPATE m (vacío=global)</label><input type="number" step="0.05" min="0.5" value="${m.wheelbase || ""}" placeholder="${state.vehicle.wheelbase}" data-f="wheelbase"></div>
-        <div></div>
+        <div class="f"><label>VUELO DELANT. ↦eje m</label><input type="number" step="0.05" value="${+frontVuelo.toFixed(3)}" data-f="frontVuelo"></div>
         <div class="f"><label>ART. DELANT. ↦frente m</label><input type="number" step="0.05" min="0" value="${m.jointFrontOff || 0}" data-f="jointFrontOff"></div>
         <div class="f"><label>ART. TRASERA ↦testero m</label><input type="number" step="0.05" min="0" value="${m.jointRearOff || 0}" data-f="jointRearOff"></div>
-        <div></div>
+        <div class="f"><label>VUELO TRAS. eje↦ m</label><input type="number" step="0.05" value="${+rearVuelo.toFixed(3)}" data-f="rearVuelo"></div>
+      </div></td>`;
+      tb.appendChild(rb);
+    }
+    if (isBi) {
+      const rb = document.createElement("tr");
+      rb.className = "modx";
+      rb.innerHTML = `<td></td><td colspan="6"><div class="sub">
+        <div class="f"><label>PIVOTE TRASERO ↦frente m</label><input type="number" step="0.05" min="0" value="${m.pivotRearFromFront ?? ""}" data-f="pivotRearFromFront"></div>
+        <div class="f"><label>EMPATE bogie m (vacío=global)</label><input type="number" step="0.05" min="0.5" value="${m.wheelbase || ""}" placeholder="${state.vehicle.wheelbase}" data-f="wheelbase"></div>
+        <div class="f"><label>VUELO DELANT. ↦eje m</label><input type="number" step="0.05" value="${+frontVuelo.toFixed(3)}" data-f="frontVuelo"></div>
+        <div class="f"><label>ART. DELANT. ↦frente m</label><input type="number" step="0.05" min="0" value="${m.jointFrontOff || 0}" data-f="jointFrontOff"></div>
+        <div class="f"><label>ART. TRASERA ↦testero m</label><input type="number" step="0.05" min="0" value="${m.jointRearOff || 0}" data-f="jointRearOff"></div>
+        <div class="f"><label>VUELO TRAS. eje↦ m</label><input type="number" step="0.05" value="${+rearVuelo.toFixed(3)}" data-f="rearVuelo"></div>
       </div></td>`;
       tb.appendChild(rb);
     }
@@ -310,11 +361,28 @@ export function renderVehiclePanel(): void {
         else if (f === "type") {
           m.type = el.value as ModuleType;
           if (m.type === "bogie" && m.pivotFromFront == null) m.pivotFromFront = m.length / 2;
+          if (m.type === "biBogie") {
+            if (m.pivotFrontFromFront == null) m.pivotFrontFromFront = m.length / 6;
+            if (m.pivotRearFromFront == null)
+              m.pivotRearFromFront = Math.max(m.pivotFrontFromFront + 1, (5 * m.length) / 6);
+          }
           renderVehiclePanel();
         } else if (f === "bogieType") m.bogieType = el.value as BogieType;
-        else if (f === "wheelbase")
+        else if (f === "wheelbase") {
           m.wheelbase = el.value === "" ? undefined : parseFloat(el.value) || undefined;
-        else if (f === "cabShape") {
+          renderVehiclePanel(); // los vuelos derivados dependen del empate
+        } else if (f === "frontVuelo" || f === "rearVuelo") {
+          // vuelo = pivote ∓ empate/2 ⇒ pivote = vuelo ± empate/2 (E4-B3)
+          const p = m.wheelbase || v.wheelbase || 0;
+          const val = parseFloat(el.value) || 0;
+          if (m.type === "biBogie") {
+            if (f === "frontVuelo") m.pivotFrontFromFront = val + p / 2;
+            else m.pivotRearFromFront = m.length - val - p / 2;
+          } else {
+            m.pivotFromFront = f === "frontVuelo" ? val + p / 2 : m.length - val - p / 2;
+          }
+          renderVehiclePanel();
+        } else if (f === "cabShape") {
           if (el.value === "chaflan") {
             const ex = cham || {
               d: Math.min(0.8, m.length / 2),
@@ -415,6 +483,7 @@ export function loadPreset(i: number): void {
   dxfParse = null;
   $("dxfLayerRow").style.display = "none";
   $("dxfFlipRow").style.display = "none";
+  $("dxfRailsRow").style.display = "none";
   $("trackInfo").textContent = `${state.trackName} · L = ${fmt(state.track.length, 2)} m`;
   $("trackWarnings").textContent = "";
 }
@@ -637,12 +706,15 @@ export function initPanels(): void {
       const multi = layers.length > 1;
       $("dxfLayerRow").style.display = multi ? "" : "none";
       $("dxfFlipRow").style.display = "";
+      $("dxfRailsRow").style.display = "";
       $<HTMLInputElement>("dxfFlip").checked = false;
+      $<HTMLInputElement>("dxfRails").checked = false;
       applyDxf();
     } catch (err) {
       dxfParse = null;
       $("dxfLayerRow").style.display = "none";
       $("dxfFlipRow").style.display = "none";
+      $("dxfRailsRow").style.display = "none";
       $("trackWarnings").textContent = "";
       $("trackInfo").textContent = "";
       setStatus("No se pudo importar el DXF: " + (err as Error).message, true);
@@ -652,6 +724,7 @@ export function initPanels(): void {
   // Re-unir cadenas al cambiar la capa del eje o el sentido de marcha (E2-3).
   $("dxfLayer").addEventListener("change", () => applyDxf());
   $("dxfFlip").addEventListener("change", () => applyDxf());
+  $("dxfRails").addEventListener("change", () => applyDxf());
 
   // importar alignment LandXML (con PK de proyecto — E2-4)
   $("btnLandxml").addEventListener("click", () => $<HTMLInputElement>("fileLandxml").click());
@@ -668,6 +741,7 @@ export function initPanels(): void {
       dxfParse = null;
       $("dxfLayerRow").style.display = "none";
       $("dxfFlipRow").style.display = "none";
+      $("dxfRailsRow").style.display = "none";
       const pk0 = r.pkMap[0].pk;
       $("trackInfo").textContent =
         `${f.name} · ${r.name} · L = ${fmt(state.track.length, 2)} m · PK inicio ${fmt(pk0, 1)}`;

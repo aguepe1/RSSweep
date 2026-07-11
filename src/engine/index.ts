@@ -1,12 +1,13 @@
 // Barrel del motor: API pública (equivalente al module.exports de engine.js).
 export { trackFromSegments, trackFromPoints, makeTrack, reverseTrack } from "./track";
-export { parseDXF, joinChains, obstaclesFromDXF, writeDXF } from "./dxf";
+export { parseDXF, joinChains, railsToAxis, obstaclesFromDXF, writeDXF } from "./dxf";
 export { parseLandXML, pkAt, sAtPk } from "./landxml";
 export {
   defaultJoint,
   defaultKin,
   syncJoints,
   validateVehicle,
+  vehicleWarnings,
   vehicleLength,
   rectContour,
   chamferContour,

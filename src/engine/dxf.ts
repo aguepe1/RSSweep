@@ -4,6 +4,7 @@ import type {
   DXFParseResult,
   JoinOpts,
   JoinResult,
+  RailsToAxisResult,
   SweepResult,
   Track,
   Vec2,
@@ -402,6 +403,109 @@ export function joinChains(chains: Chain[], opts: JoinOpts = {}): JoinResult {
     warnings.push(`${pool.length} entidad(es) no conectadas al eje principal — se han descartado.`);
   if (opts.flip) path = path.slice().reverse();
   return { points: path, warnings };
+}
+
+/** Une por proximidad de extremos y devuelve UNA polilínea por componente conexa,
+ *  ordenadas por longitud descendente. Base de la detección de dos carriles (E4-B1). */
+function joinAllComponents(chains: Chain[], tol: number): Chain[] {
+  const pool = chains.map((c) => c.slice());
+  const out: Chain[] = [];
+  while (pool.length) {
+    let path = pool.shift()!;
+    let grew = true;
+    while (grew && pool.length) {
+      grew = false;
+      for (let i = 0; i < pool.length; i++) {
+        const c = pool[i];
+        const pS = path[0];
+        const pE = path[path.length - 1];
+        const cS = c[0];
+        const cE = c[c.length - 1];
+        if (vlen(vsub(pE, cS)) < tol) {
+          path = path.concat(c.slice(1));
+        } else if (vlen(vsub(pE, cE)) < tol) {
+          path = path.concat(c.slice(0, -1).reverse());
+        } else if (vlen(vsub(pS, cE)) < tol) {
+          path = c.slice(0, -1).concat(path);
+        } else if (vlen(vsub(pS, cS)) < tol) {
+          path = c.slice(1).reverse().concat(path);
+        } else continue;
+        pool.splice(i, 1);
+        grew = true;
+        break;
+      }
+    }
+    out.push(path);
+  }
+  const len = (c: Chain): number => {
+    let L = 0;
+    for (let k = 1; k < c.length; k++) L += vlen(vsub(c[k], c[k - 1]));
+    return L;
+  };
+  return out.sort((a, b) => len(b) - len(a));
+}
+
+/** Punto más cercano de `w` sobre la polilínea `chain` y su distancia. */
+function nearestOnChain(w: Vec2, chain: Chain): { pt: Vec2; d: number } {
+  let best = Infinity;
+  let bp: Vec2 = chain[0];
+  for (let i = 0; i < chain.length - 1; i++) {
+    const a = chain[i];
+    const b = chain[i + 1];
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const len2 = dx * dx + dy * dy || 1e-12;
+    let u = ((w[0] - a[0]) * dx + (w[1] - a[1]) * dy) / len2;
+    u = Math.max(0, Math.min(1, u));
+    const fx = a[0] + u * dx;
+    const fy = a[1] + u * dy;
+    const d = (w[0] - fx) ** 2 + (w[1] - fy) ** 2;
+    if (d < best) {
+      best = d;
+      bp = [fx, fy];
+    }
+  }
+  return { pt: bp, d: Math.sqrt(best) };
+}
+
+/**
+ * Deriva el eje de vía (línea media) y el ancho de vía `gauge` a partir de dos
+ * carriles importados (E4-B1). Agrupa las cadenas en componentes conexas, toma las
+ * dos más largas como carriles, y para cada vértice del carril mayor proyecta sobre
+ * el otro: el punto medio traza el eje y la distancia mide la separación (gauge =
+ * mediana de las separaciones, robusta a extremos). El eje resultante es la misma
+ * línea media que el motor ya asume para vía de ancho fijo, así que no altera la
+ * envolvente ni los valores dorados: cambia de dónde SALE el eje, no cómo se barre.
+ */
+export function railsToAxis(chains: Chain[], opts: JoinOpts = {}): RailsToAxisResult {
+  const tol = opts.tol ?? 0.05;
+  const comps = joinAllComponents(chains, tol);
+  const warnings: string[] = [];
+  if (comps.length < 2)
+    return {
+      axis: null,
+      gauge: null,
+      warnings: [
+        "Se necesitan dos carriles: sólo se halló una polilínea conexa. Comprueba que ambos rieles estén en el DXF.",
+      ],
+    };
+  if (comps.length > 2)
+    warnings.push(
+      `Se hallaron ${comps.length} polilíneas; se toman las dos más largas como carriles.`,
+    );
+  const railA = comps[0];
+  const railB = comps[1];
+  const axis: Chain = [];
+  const gaps: number[] = [];
+  for (const p of railA) {
+    const nb = nearestOnChain(p, railB);
+    axis.push([(p[0] + nb.pt[0]) / 2, (p[1] + nb.pt[1]) / 2]);
+    gaps.push(nb.d);
+  }
+  gaps.sort((a, b) => a - b);
+  const gauge = gaps[gaps.length >> 1];
+  if (opts.flip) axis.reverse();
+  return { axis, gauge, warnings };
 }
 
 /** Importa un DXF de obstáculos: TODAS las cadenas se conservan (no se encadenan). */

@@ -37,6 +37,8 @@ export interface BarridoProject {
   obstaclesName: string;
   track: SerTrack | null;
   pkMap: PkMap | null;
+  /** Ancho de vía (m). Opcional: los documentos previos toman el default 1.435. */
+  gauge?: number;
   view: ViewState;
 }
 
@@ -58,6 +60,7 @@ export function serializeProject(): BarridoProject {
       ? { s: Array.from(t.s), x: Array.from(t.x), y: Array.from(t.y), name: state.trackName }
       : null,
     pkMap: state.pkMap ? clone(state.pkMap) : null,
+    gauge: state.gauge,
     view: clone(state.view),
   };
 }
@@ -93,6 +96,7 @@ export function applyProject(doc: BarridoProject): void {
     state.trackName = "";
   }
   state.pkMap = p.pkMap ?? null;
+  state.gauge = p.gauge ?? 1.435;
   state.view = clone(p.view);
   refreshInputUI();
   run(); // recalcula; el encuadre se reajusta automáticamente como en todo cálculo
@@ -105,6 +109,7 @@ export function newProject(): void {
   state.uic = { enabled: false, a: 13.9, na: 2.3, p: 1.85, b: 1.325 };
   state.obstacles = null;
   state.obstaclesName = "";
+  state.gauge = 1.435;
   loadPreset(0);
   refreshInputUI();
   fitView();
@@ -117,6 +122,7 @@ function refreshInputUI(): void {
   renderKinPanel();
   renderUicPanel();
   drawSchematic();
+  $<HTMLInputElement>("trackGauge").value = String(Math.round(state.gauge * 1000));
   $<HTMLSelectElement>("trackPreset").selectedIndex = -1;
   $("dxfLayerRow").style.display = "none";
   $("dxfFlipRow").style.display = "none";

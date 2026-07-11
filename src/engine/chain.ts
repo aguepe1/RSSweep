@@ -29,8 +29,17 @@ export function solveChain(
   const mods = v.modules;
   const poses = new Array<ModulePose>(mods.length);
   const sPivots: number[] = [];
+  const pivots: Vec2[] = [];
+  const sFronts: number[] = [];
   const secants: number[] = [];
   let bOrder = 0;
+
+  const isGuided = (m: VehicleModule): boolean => m.type === "bogie" || m.type === "biBogie";
+  const pivotFrontOf = (m: VehicleModule): number =>
+    m.type === "biBogie" ? (m.pivotFrontFromFront ?? 0) : (m.pivotFromFront ?? 0);
+  /** Punto medio de la cuerda del empate p centrada en la abscisa s. */
+  const chordMid = (s: number, p: number): Vec2 =>
+    vscale(vadd(track.pos(s - p / 2), track.pos(s + p / 2)), 0.5);
 
   function bogiePose(m: VehicleModule, s: number, bIdx: number): ModulePose {
     const mwb = m.wheelbase || wb;
@@ -43,6 +52,92 @@ export function solveChain(
     const front = vadd(anchor, vscale(unit(th), m.pivotFromFront ?? 0));
     return { front, theta: th, secant: sec, rigid };
   }
+
+  /**
+   * Pivote trasero del biBogie: abscisa s_r < s_f tal que la distancia entre los
+   * dos centros de bogie (puntos medios de cuerda de empate) valga a. Bisección en
+   * dos fases (±0.9 fino / ±4.5 amplio) alrededor de la cuerda s_f−a; devuelve null
+   * si no se puede acotar (extremos del trazado). Ver E4-B2 en docs/ENGINE_NOTES.
+   */
+  function solveRear(sFront: number, p: number, a: number): number | null {
+    const Pf = chordMid(sFront, p);
+    const fr = (sr: number): number => vlen(vsub(Pf, chordMid(sr, p))) - a;
+    const g = sFront - a;
+    let lo: number | null = null;
+    let hi: number | null = null;
+    for (const [half, ds] of [
+      [0.9, 0.15],
+      [4.5, 0.25],
+    ]) {
+      let prevS = g - half;
+      let prevF = fr(prevS);
+      for (let sc = g - half + ds; sc <= g + half + 1e-9; sc += ds) {
+        const fc = fr(sc);
+        if (prevF * fc <= 0) {
+          lo = prevS;
+          hi = sc;
+          break;
+        }
+        prevS = sc;
+        prevF = fc;
+      }
+      if (lo !== null) break;
+    }
+    if (lo === null || hi === null) return null;
+    let a0 = lo;
+    let b0 = hi;
+    let fLo = fr(a0);
+    while (b0 - a0 > 1e-8) {
+      const mid = 0.5 * (a0 + b0);
+      const fm = fr(mid);
+      if (fLo * fm <= 0) b0 = mid;
+      else {
+        a0 = mid;
+        fLo = fm;
+      }
+    }
+    return 0.5 * (a0 + b0);
+  }
+
+  /**
+   * Pose del biBogie con el pivote delantero en sFront: rumbo = cuerda entre los dos
+   * pivotes, frente F = P_f + rumbo·pivotFrontFromFront. `sRear` es null si el pivote
+   * trasero no se puede resolver (para f(s) se usa la aproximación por cuerda).
+   */
+  function biBogieResolve(
+    m: VehicleModule,
+    sFront: number,
+  ): { pose: ModulePose; sRear: number | null; srUse: number; Pf: Vec2; Pr: Vec2 } {
+    const p = m.wheelbase || wb;
+    const a = (m.pivotRearFromFront ?? 0) - (m.pivotFrontFromFront ?? 0);
+    const sRear = solveRear(sFront, p, a);
+    const srUse = sRear ?? sFront - a;
+    const Pf = chordMid(sFront, p);
+    const Pr = chordMid(srUse, p);
+    const th = Math.atan2(Pf[1] - Pr[1], Pf[0] - Pr[0]);
+    const front = vadd(Pf, vscale(unit(th), m.pivotFrontFromFront ?? 0));
+    return { pose: { front, theta: th, secant: th, rigid: true }, sRear, srUse, Pf, Pr };
+  }
+
+  /** Pose unificada de un módulo guiado (bogie|biBogie) con el pivote delantero en s. */
+  function guidedPose(
+    m: VehicleModule,
+    s: number,
+    bIdx: number,
+  ): { pose: ModulePose; arcs: number[]; pts: Vec2[]; ok: boolean } {
+    if (m.type === "biBogie") {
+      const r = biBogieResolve(m, s);
+      return {
+        pose: r.pose,
+        arcs: [s, r.srUse],
+        pts: [r.Pf, r.Pr],
+        ok: r.sRear !== null && r.srUse >= 0,
+      };
+    }
+    const pose = bogiePose(m, s, bIdx);
+    const anchor = pose.rigid ? chordMid(s, m.wheelbase || wb) : track.pos(s);
+    return { pose, arcs: [s], pts: [anchor], ok: true };
+  }
   function jointFrontPt(m: VehicleModule, pose: ModulePose): Vec2 {
     return vadd(pose.front, vscale(unit(pose.theta), -(m.jointFrontOff || 0)));
   }
@@ -50,10 +145,14 @@ export function solveChain(
     return vadd(pose.front, vscale(unit(pose.theta), -(m.length - (m.jointRearOff || 0))));
   }
 
-  poses[0] = bogiePose(mods[0], s1, bOrder);
-  secants.push(poses[0].secant!);
+  const g0 = guidedPose(mods[0], s1, bOrder);
+  if (!g0.ok) return null;
+  poses[0] = g0.pose;
+  secants.push(g0.pose.secant!);
+  for (const sa of g0.arcs) sPivots.push(sa);
+  for (const pt of g0.pts) pivots.push(pt);
+  sFronts.push(s1);
   bOrder++;
-  sPivots.push(s1);
   let A = jointRearPt(mods[0], poses[0]);
   let sPrev = s1;
   let i = 1;
@@ -67,16 +166,15 @@ export function solveChain(
     if (i >= mods.length) break;
 
     const group: number[] = [];
-    while (i < mods.length && mods[i].type !== "bogie") group.push(i++);
+    while (i < mods.length && !isGuided(mods[i])) group.push(i++);
     if (i >= mods.length) return null;
     const j = i;
     const Lsum = group.reduce((a, gi) => a + mods[gi].length, 0);
     const dPrev = vlen(vsub(track.pos(sPrev), A));
-    const chainGuess =
-      dPrev + Lsum + ((mods[j].pivotFromFront ?? 0) - (mods[j].jointFrontOff || 0));
+    const chainGuess = dPrev + Lsum + (pivotFrontOf(mods[j]) - (mods[j].jointFrontOff || 0));
 
     const f = (s: number): number =>
-      vlen(vsub(A, jointFrontPt(mods[j], bogiePose(mods[j], s, bOrder)))) - Lsum;
+      vlen(vsub(A, jointFrontPt(mods[j], guidedPose(mods[j], s, bOrder).pose))) - Lsum;
     let sj: number;
     const g = sHints && sHints[bOrder] != null ? sHints[bOrder] : sPrev - chainGuess;
     if (Lsum > 1e-9) {
@@ -126,10 +224,14 @@ export function solveChain(
       sj = 0.5 * (lo + hi);
     }
     if (sj < 0 || sj > track.length) return null;
-    poses[j] = bogiePose(mods[j], sj, bOrder);
-    secants.push(poses[j].secant!);
+    const gj = guidedPose(mods[j], sj, bOrder);
+    if (!gj.ok) return null;
+    poses[j] = gj.pose;
+    secants.push(gj.pose.secant!);
+    for (const sa of gj.arcs) sPivots.push(sa);
+    for (const pt of gj.pts) pivots.push(pt);
+    sFronts.push(sj);
     bOrder++;
-    sPivots.push(sj);
     const B = jointFrontPt(mods[j], poses[j]);
     if (group.length) {
       const dAB = vsub(A, B);
@@ -154,7 +256,7 @@ export function solveChain(
     jointAngles.push((d * 180) / Math.PI);
     jointPts.push(jointRearPt(mods[k], poses[k]));
   }
-  return { poses, sPivots, jointAngles, jointPts, secants };
+  return { poses, sPivots, pivots, sFronts, jointAngles, jointPts, secants };
 }
 
 export function hasBisectriz(v: Vehicle): boolean {
@@ -165,7 +267,7 @@ export function hasBisectriz(v: Vehicle): boolean {
 function centeredModules(v: Vehicle): Array<{ idx: number; k: number }> {
   const out: Array<{ idx: number; k: number }> = [];
   v.modules.forEach((m, i) => {
-    if (m.type === "bogie") return;
+    if (m.type !== "suspendido") return;
     const jb = v.joints[i - 1];
     const ja = v.joints[i];
     const ks: number[] = [];
@@ -186,13 +288,18 @@ export function solveChainEq(
   s1: number,
   warm?: WarmStart | null,
 ): ChainSolution | null {
-  const sHints = warm && warm.sPivots ? warm.sPivots : null;
+  const sHints = warm && warm.sFronts ? warm.sFronts : null;
   if (!hasBisectriz(v)) {
     return solveChain(track, v, s1, null, sHints);
   }
-  const bogies = v.modules.filter((m) => m.type === "bogie");
-  const nB = bogies.length;
-  const freeIdx = bogies.map((m, i) => (m.bogieType !== "rigido" ? i : -1)).filter((i) => i >= 0);
+  // Orden guiado (bogie|biBogie); el biBogie es rígido (sin lazo libre) y se excluye
+  // de los grados de libertad, como el bogie "rigido". Sin lazos libres ⇒ la
+  // geometría queda determinada y el solver de equilibrio no interviene (E4-B2).
+  const guided = v.modules.filter((m) => m.type === "bogie" || m.type === "biBogie");
+  const nB = guided.length;
+  const freeIdx = guided
+    .map((m, i) => (m.type === "bogie" && m.bogieType !== "rigido" ? i : -1))
+    .filter((i) => i >= 0);
   if (!freeIdx.length) return solveChain(track, v, s1, null, sHints);
   const centered = centeredModules(v);
   function wrapAng(a: number): number {
@@ -203,7 +310,7 @@ export function solveChainEq(
 
   let lastChain: ChainSolution | null = null;
   function energy(yaws: number[]): { E: number; ch: ChainSolution } | null {
-    const ch = solveChain(track, v, s1, yaws, lastChain ? lastChain.sPivots : sHints);
+    const ch = solveChain(track, v, s1, yaws, lastChain ? lastChain.sFronts : sHints);
     if (!ch) return null;
     let Ev = 0;
     for (const b of freeIdx) {

@@ -218,4 +218,31 @@ export const VEHICLE_PRESETS: VehiclePreset[] = [
       ],
     },
   },
+  {
+    // E4-B2 · coche rígido sobre DOS bogies (cuerpo único de dos pivotes). Preset de
+    // validación: L=14, ancho 2.55, pivotes a 2.50 y 11.50 (a=9.0), empate 1.85. Los
+    // dorados analíticos en R25 están en docs/ENGINE_NOTES §4.4 / tests/bibogie.test.ts.
+    id: "car2bogie",
+    name: "Coche 2 bogies ~14 m (validación)",
+    vehicle: {
+      wheelbase: 1.85,
+      mirror: { enabled: false, protrusion: 0, length: 0, offsetFromFront: 0 },
+      modules: [
+        {
+          id: "K1",
+          type: "biBogie",
+          length: 14.0,
+          width: 2.55,
+          pivotFrontFromFront: 2.5,
+          pivotRearFromFront: 11.5,
+          wheelbase: 1.85,
+          jointFrontOff: 0,
+          jointRearOff: 0,
+          cabFront: true,
+          cabRear: true,
+        },
+      ],
+      joints: [],
+    },
+  },
 ];

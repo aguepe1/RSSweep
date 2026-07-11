@@ -46,7 +46,7 @@ export interface LandXMLResult {
 }
 
 // -------------------------------------------------------------------- VEHÍCULO
-export type ModuleType = "bogie" | "suspendido";
+export type ModuleType = "bogie" | "suspendido" | "biBogie";
 export type BogieType = "rigido";
 
 export interface VehicleModule {
@@ -58,8 +58,22 @@ export interface VehicleModule {
   width: number;
   /** Sólo bogie: posición del pivote medida desde el frente del módulo. */
   pivotFromFront?: number;
+  /**
+   * Sólo biBogie (E4-B2): pivote delantero medido desde el frente del módulo (m).
+   * El cuerpo es rígido y apoya en DOS pivotes de bogie; su rumbo es la cuerda
+   * entre ambos. Cada pivote se ancla en el punto medio de la cuerda de su empate
+   * (retranqueo p²/8R hacia el interior de la curva).
+   */
+  pivotFrontFromFront?: number;
+  /** Sólo biBogie (E4-B2): pivote trasero desde el frente del módulo (m); ≥ delantero+1. */
+  pivotRearFromFront?: number;
   /** Empate propio del bogie (m); si falta usa `Vehicle.wheelbase`. */
   wheelbase?: number;
+  /**
+   * Sólo bogie: ancho del bastidor dibujado (m). Presentación (E4-A2); si falta
+   * usa `gauge + 0.2`. No altera la envolvente barrida ni los valores dorados.
+   */
+  bogieWidth?: number;
   jointFrontOff?: number;
   jointRearOff?: number;
   cabFront?: boolean;
@@ -140,7 +154,23 @@ export interface ModulePose {
 
 export interface ChainSolution {
   poses: ModulePose[];
+  /**
+   * Abscisas de arco de TODOS los pivotes en orden de aparición. Un bogie aporta
+   * una entrada [s]; un biBogie (E4-B2) aporta dos [s_f, s_r]. Contrato de
+   * presentación (marcadores de pivote, ocupación del vehículo).
+   */
   sPivots: number[];
+  /**
+   * Posición en el plano de cada pivote, en paralelo a `sPivots` (E4-B2). Para el
+   * bogie rígido y el biBogie NO está sobre el eje (retranqueo p²/8R hacia el
+   * interior); para el bogie pivotante coincide con `track.pos(s)`.
+   */
+  pivots: Vec2[];
+  /**
+   * Abscisa de arco del pivote delantero de cada módulo guiado (bogie|biBogie), en
+   * orden guiado. Warm-start interno de la bisección; NO es contrato de UI.
+   */
+  sFronts: number[];
   jointAngles: number[];
   jointPts: Vec2[];
   secants: number[];
@@ -149,7 +179,8 @@ export interface ChainSolution {
 
 export interface WarmStart {
   yaws: number[] | null;
-  sPivots: number[];
+  /** Abscisas del pivote delantero por módulo guiado (orden guiado), ver `sFronts`. */
+  sFronts: number[];
 }
 
 export type PolyKind = "body" | "fuelle" | "mirror";
@@ -294,6 +325,16 @@ export interface JoinResult {
   points: Chain | null;
   warnings: string[];
 }
+/**
+ * Resultado de derivar el eje de dos carriles importados (E4-B1): la línea media
+ * entre ambos rieles como eje de vía, y el ancho de vía `gauge` (m) = separación
+ * medida entre ellos. `axis`/`gauge` null si no se hallan dos carriles.
+ */
+export interface RailsToAxisResult {
+  axis: Chain | null;
+  gauge: number | null;
+  warnings: string[];
+}
 /** Opciones de encadenado (E2-3): capa de eje, tolerancia, inversión de sentido. */
 export interface JoinOpts {
   tol?: number;
@@ -345,12 +386,15 @@ export const moduleSchema = {
   additionalProperties: false,
   properties: {
     id: { type: "string" },
-    type: { enum: ["bogie", "suspendido"] },
+    type: { enum: ["bogie", "suspendido", "biBogie"] },
     bogieType: { enum: ["rigido", "pivotante"] },
     length: { type: "number", exclusiveMinimum: 0 },
     width: { type: "number", exclusiveMinimum: 0 },
     pivotFromFront: { type: "number", minimum: 0 },
+    pivotFrontFromFront: { type: "number", minimum: 0 },
+    pivotRearFromFront: { type: "number", minimum: 0 },
     wheelbase: { type: "number", exclusiveMinimum: 0 },
+    bogieWidth: { type: "number", exclusiveMinimum: 0 },
     jointFrontOff: { type: "number", minimum: 0 },
     jointRearOff: { type: "number", minimum: 0 },
     cabFront: { type: "boolean" },

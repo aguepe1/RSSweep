@@ -238,6 +238,91 @@ function drawPkMarks(): void {
   }
 }
 
+/** Dos carriles a ±gauge/2 del eje (presentación). El eje montado sigue la línea
+ *  media dentro del juego de pestaña ya modelado, de modo que los carriles no
+ *  alteran la envolvente barrida: son la infraestructura sobre la que apoya. */
+function drawRails(): void {
+  const t = state.track!;
+  const dpr = window.devicePixelRatio || 1;
+  const half = state.gauge / 2;
+  const N = Math.max(2, Math.ceil(t.length / 0.5));
+  vpx.strokeStyle = C.rail;
+  vpx.lineWidth = 1.3 * dpr;
+  for (const side of [1, -1]) {
+    vpx.beginPath();
+    for (let i = 0; i <= N; i++) {
+      const s = (t.length * i) / N;
+      const c = t.pos(s);
+      const hd = t.heading(s);
+      const nx = -Math.sin(hd),
+        ny = Math.cos(hd);
+      const p = W2S([c[0] + side * half * nx, c[1] + side * half * ny]);
+      if (i) vpx.lineTo(p[0], p[1]);
+      else vpx.moveTo(p[0], p[1]);
+    }
+    vpx.stroke();
+  }
+}
+
+/** Bastidor de cada bogie + sus dos ejes, reconstruidos de la solución de cadena
+ *  (`sPivots`/empate) sin tocar el motor: puro dibujo. Los ejes se dibujan a
+ *  ±gauge/2 (ruedas apoyando en el carril); el bastidor, de ancho `bogieWidth`.
+ *  El biBogie (E4-B2) aporta dos entradas en `sPivots` ⇒ dos bastidores. */
+function drawBogies(stp: { chain: { sPivots: number[] } }): void {
+  const t = state.track!;
+  const dpr = window.devicePixelRatio || 1;
+  const wbDef = state.vehicle.wheelbase || 1.8;
+  const halfG = state.gauge / 2;
+  vpx.strokeStyle = C.bogie;
+  vpx.lineWidth = 1.3 * dpr;
+  const frame = (sp: number, mwb: number, bw: number): void => {
+    const p1 = t.pos(sp - mwb / 2);
+    const p2 = t.pos(sp + mwb / 2);
+    const sec = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]);
+    const nx = -Math.sin(sec),
+      ny = Math.cos(sec);
+    // bastidor: rectángulo empate × bogieWidth centrado en la cuerda p1→p2
+    const corners: Vec2[] = [
+      [p1[0] + (nx * bw) / 2, p1[1] + (ny * bw) / 2],
+      [p2[0] + (nx * bw) / 2, p2[1] + (ny * bw) / 2],
+      [p2[0] - (nx * bw) / 2, p2[1] - (ny * bw) / 2],
+      [p1[0] - (nx * bw) / 2, p1[1] - (ny * bw) / 2],
+    ];
+    vpx.beginPath();
+    corners.forEach((c, i) => {
+      const p = W2S(c);
+      if (i) vpx.lineTo(p[0], p[1]);
+      else vpx.moveTo(p[0], p[1]);
+    });
+    vpx.closePath();
+    vpx.stroke();
+    // ejes: segmentos transversales a ±gauge/2 en cada rodadura
+    for (const pc of [p1, p2]) {
+      const a = W2S([pc[0] + nx * halfG, pc[1] + ny * halfG]);
+      const b = W2S([pc[0] - nx * halfG, pc[1] - ny * halfG]);
+      vpx.beginPath();
+      vpx.moveTo(a[0], a[1]);
+      vpx.lineTo(b[0], b[1]);
+      vpx.stroke();
+    }
+  };
+  // cursor sobre sPivots: bogie=1 entrada, biBogie=2 entradas.
+  let pi = 0;
+  for (const m of state.vehicle.modules) {
+    const mwb = m.wheelbase || wbDef;
+    const bw = m.bogieWidth ?? state.gauge + 0.2;
+    if (m.type === "bogie") {
+      const sp = stp.chain.sPivots[pi++];
+      if (sp != null) frame(sp, mwb, bw);
+    } else if (m.type === "biBogie") {
+      const sf = stp.chain.sPivots[pi++];
+      const sr = stp.chain.sPivots[pi++];
+      if (sf != null) frame(sf, mwb, bw);
+      if (sr != null) frame(sr, mwb, bw);
+    }
+  }
+}
+
 /** Marcador de cursor compartido (línea perpendicular al eje en `hoverS`). */
 function drawHover(): void {
   if (hoverS == null || !state.track) return;
@@ -359,6 +444,7 @@ export function drawViewport(): void {
   vpx.lineWidth = 1.1 * dpr;
   vpx.stroke();
   vpx.setLineDash([]);
+  if (layerOn("Rail")) drawRails();
   drawPkMarks();
   // marca de inicio
   const p0 = W2S(state.track.pos(0));
@@ -438,10 +524,13 @@ export function drawViewport(): void {
         vpx.stroke();
       }
     }
-    // pivotes
+    // bastidor de bogie + ejes (debajo de los pivotes)
+    if (layerOn("Rail")) drawBogies(stp);
+    // pivotes (posición real en el plano; el bogie rígido y el biBogie NO van sobre
+    // el eje: retranqueo p²/8R hacia el interior — E4-B2)
     vpx.fillStyle = C.vehicle;
-    for (const sp of stp.chain.sPivots) {
-      const p = W2S(state.track.pos(sp));
+    for (const pt of stp.chain.pivots) {
+      const p = W2S(pt);
       vpx.beginPath();
       vpx.arc(p[0], p[1], 2.6 * dpr, 0, 7);
       vpx.fill();
@@ -563,8 +652,13 @@ export function initViewport(onDraw: () => void): void {
     if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
     if (e.key === "m" || e.key === "M") setMeasure(!measure.on);
   });
-  for (const id of ["vpGrid", "layFootprint", "layKin", "layObs", "layVeh", "layUic"])
+  for (const id of ["vpGrid", "layFootprint", "layKin", "layObs", "layVeh", "layUic", "layRail"])
     document.getElementById(id)?.addEventListener("change", () => requestRedraw());
+  document.getElementById("trackGauge")?.addEventListener("input", (e) => {
+    const mm = parseFloat((e.target as HTMLInputElement).value);
+    if (mm > 0) state.gauge = mm / 1000;
+    requestRedraw();
+  });
   document.getElementById("vpDark")?.addEventListener("change", (e) => {
     setViewportDark((e.target as HTMLInputElement).checked);
     requestRedraw();

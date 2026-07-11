@@ -34,9 +34,9 @@ function scrubBy(delta: number): void {
   s.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-/** Conmuta la capa `n` (1..5) del viewport disparando el `change` de su checkbox. */
+/** Conmuta la capa `n` (1..6) del viewport disparando el `change` de su checkbox. */
 function toggleLayer(n: number): void {
-  const ids = ["layFootprint", "layKin", "layUic", "layObs", "layVeh"];
+  const ids = ["layFootprint", "layKin", "layUic", "layObs", "layVeh", "layRail"];
   const el = document.getElementById(ids[n - 1]) as HTMLInputElement | null;
   if (!el) return;
   el.checked = !el.checked;
@@ -96,6 +96,7 @@ export function initShortcuts(): void {
       case "3":
       case "4":
       case "5":
+      case "6":
         e.preventDefault();
         toggleLayer(Number(e.key));
         break;

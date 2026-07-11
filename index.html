@@ -998,6 +998,7 @@
                   + Añadir módulo
                 </button>
                 <div class="err" id="vehErrors"></div>
+                <div class="warn" id="vehWarnings"></div>
               </div>
             </div>
 
@@ -1007,6 +1008,17 @@
                 <div class="row">
                   <label for="trackPreset" data-i18n="lbl.trackPreset">Preset de prueba</label
                   ><select id="trackPreset"></select>
+                </div>
+                <div class="row">
+                  <label for="trackGauge" data-i18n="lbl.gauge">Ancho de vía (mm)</label
+                  ><input
+                    type="number"
+                    id="trackGauge"
+                    min="600"
+                    max="2000"
+                    step="1"
+                    value="1435"
+                  />
                 </div>
                 <button class="btn" id="btnDxf" style="width: 100%" data-i18n="btn.importDxf">
                   Importar trazado DXF…
@@ -1028,6 +1040,10 @@
                 <div class="row" id="dxfFlipRow" style="display: none">
                   <label for="dxfFlip" data-i18n="lbl.flip">Invertir sentido de marcha</label
                   ><input type="checkbox" id="dxfFlip" style="flex: 0 0 auto" />
+                </div>
+                <div class="row" id="dxfRailsRow" style="display: none">
+                  <label for="dxfRails" data-i18n="lbl.rails">Importar como dos carriles</label
+                  ><input type="checkbox" id="dxfRails" style="flex: 0 0 auto" />
                 </div>
                 <div class="fileline" id="trackInfo"></div>
                 <div class="warn" id="trackWarnings"></div>
@@ -1291,6 +1307,11 @@
                 >vehículo</span
               ></label
             >
+            <label
+              ><input type="checkbox" id="layRail" checked /><span data-i18n="lay.rail"
+                >carriles</span
+              ></label
+            >
             <span class="sep"></span>
             <label
               ><input type="checkbox" id="vpGrid" checked /><span data-i18n="tool.grid"
@@ -1320,6 +1341,11 @@
               style="background: transparent; border-bottom: 2px dashed #5a6470"
             ></span
             ><span data-i18n="leg.axis">eje de vía</span><br />
+            <span
+              class="sw"
+              style="background: transparent; border-bottom: 2px solid #546e7a"
+            ></span
+            ><span data-i18n="leg.rail">carriles</span><br />
             <span
               class="sw"
               style="background: rgba(21, 101, 192, 0.16); border: 1px solid #1565c0"

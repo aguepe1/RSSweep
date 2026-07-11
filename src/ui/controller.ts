@@ -1,6 +1,6 @@
 // Orquestación: validación + cálculo del barrido, estado, reproducción y
 // exportación (DXF/CSV). Depende de viewport/perfil/cajetín para redibujar.
-import { hasBisectriz, validateVehicle, writeDXF } from "../engine/index";
+import { hasBisectriz, validateVehicle, vehicleWarnings, writeDXF } from "../engine/index";
 import { APP_NAME, VERSION } from "../version";
 import { $, download, fmt } from "./dom";
 import { pkVal } from "./pk";
@@ -78,6 +78,8 @@ export function run(): void {
   terminateWorker();
   const errs = validateVehicle(state.vehicle);
   $("vehErrors").textContent = errs.join(" · ");
+  // Avisos NO bloqueantes de colocación del bogie (vuelo/empate, E4-B3).
+  $("vehWarnings").textContent = vehicleWarnings(state.vehicle).join(" · ");
   if (errs.length || !state.track) {
     setProgress(null);
     return;

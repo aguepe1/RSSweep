@@ -34,11 +34,13 @@ export function syncJoints(v: Vehicle): Vehicle {
 export function validateVehicle(v: Vehicle): string[] {
   syncJoints(v);
   const errs: string[] = [];
+  const guided = (m: (typeof v.modules)[number]): boolean =>
+    m.type === "bogie" || m.type === "biBogie";
   if (!v.modules.length) errs.push("Define al menos un modulo.");
-  if (v.modules.length && v.modules[0].type !== "bogie")
-    errs.push("El primer modulo debe ser de tipo bogie (pivote guiado).");
-  if (v.modules.length && v.modules[v.modules.length - 1].type !== "bogie")
-    errs.push("El ultimo modulo debe ser de tipo bogie.");
+  if (v.modules.length && !guided(v.modules[0]))
+    errs.push("El primer modulo debe ser guiado (bogie o coche de dos bogies).");
+  if (v.modules.length && !guided(v.modules[v.modules.length - 1]))
+    errs.push("El ultimo modulo debe ser guiado (bogie o coche de dos bogies).");
   v.modules.forEach((m, i) => {
     if (!(m.length > 0)) errs.push(`Modulo ${i + 1}: longitud invalida.`);
     if (!(m.width > 0)) errs.push(`Modulo ${i + 1}: ancho invalido.`);
@@ -47,11 +49,21 @@ export function validateVehicle(v: Vehicle): string[] {
       !((m.pivotFromFront ?? -1) >= 0 && (m.pivotFromFront ?? -1) <= m.length)
     )
       errs.push(`Modulo ${i + 1}: el pivote debe estar dentro del modulo (0..longitud).`);
+    if (m.type === "biBogie") {
+      const pf = m.pivotFrontFromFront ?? -1;
+      const pr = m.pivotRearFromFront ?? -1;
+      if (!(pf >= 0 && pf <= m.length && pr >= 0 && pr <= m.length))
+        errs.push(`Modulo ${i + 1}: los dos pivotes deben estar dentro del modulo (0..longitud).`);
+      else if (!(pr - pf >= 1.0))
+        errs.push(
+          `Modulo ${i + 1}: el pivote trasero debe estar al menos 1.0 m detras del delantero.`,
+        );
+    }
   });
   v.joints.forEach((j, i) => {
-    if (j.type === "rigida" && v.modules[i + 1] && v.modules[i + 1].type === "bogie")
+    if (j.type === "rigida" && v.modules[i + 1] && guided(v.modules[i + 1]))
       errs.push(
-        `Rotula R${i + 1}: una rotula rigida no puede conectar con un modulo bogie aguas abajo (el pivote guiado quedaria sobredeterminado).`,
+        `Rotula R${i + 1}: una rotula rigida no puede conectar con un modulo guiado aguas abajo (el pivote guiado quedaria sobredeterminado).`,
       );
     if (
       j.type === "bisectriz" &&
@@ -65,6 +77,42 @@ export function validateVehicle(v: Vehicle): string[] {
       );
   });
   return errs;
+}
+
+/**
+ * Avisos NO bloqueantes sobre la colocación del bogie dentro del coche (E4-B3):
+ * el empate debe caber en el módulo y los ejes del bogie no deben sobresalir del
+ * cuerpo. El «vuelo» se mide del testero al EJE más próximo del bogie
+ * (vuelo = pivote ∓ empate/2 respecto al extremo), de modo que para un módulo de
+ * un solo bogie vuelo_delantero + empate + vuelo_trasero = longitud. Un vuelo
+ * negativo significa que la rodadura queda fuera de la caja: es físicamente
+ * imposible pero NO impide el cálculo (a diferencia de `validateVehicle`), por eso
+ * es un aviso. Es geometría de entrada: no afecta a la envolvente ni a los dorados.
+ */
+export function vehicleWarnings(v: Vehicle): string[] {
+  const warns: string[] = [];
+  v.modules.forEach((m, i) => {
+    if (m.type !== "bogie" && m.type !== "biBogie") return;
+    const p = m.wheelbase || v.wheelbase || 0;
+    if (!(p > 0)) {
+      warns.push(`Modulo ${i + 1}: el empate debe ser positivo.`);
+      return;
+    }
+    if (p > m.length)
+      warns.push(`Modulo ${i + 1}: el empate (${p.toFixed(2)} m) supera la longitud del modulo.`);
+    // pivotes que definen los ejes: uno (bogie) o dos (biBogie)
+    const front = m.type === "biBogie" ? (m.pivotFrontFromFront ?? 0) : (m.pivotFromFront ?? 0);
+    const rear = m.type === "biBogie" ? (m.pivotRearFromFront ?? 0) : (m.pivotFromFront ?? 0);
+    if (front - p / 2 < -1e-9)
+      warns.push(
+        `Modulo ${i + 1}: vuelo delantero negativo (el eje delantero del bogie sobresale del cuerpo).`,
+      );
+    if (m.length - rear - p / 2 < -1e-9)
+      warns.push(
+        `Modulo ${i + 1}: vuelo trasero negativo (el eje trasero del bogie sobresale del cuerpo).`,
+      );
+  });
+  return warns;
 }
 
 export function vehicleLength(v: Vehicle): number {

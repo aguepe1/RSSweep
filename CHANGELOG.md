@@ -8,6 +8,61 @@ Todas las versiones notables de BARRIDO. El formato sigue
 
 ### Añadido
 
+- Colocación del bogie dentro del coche (vuelo y empate): el esquema a escala acota
+  ahora el vuelo delantero (testero↦eje), el empate de cada bogie y el vuelo trasero
+  (eje↦testero); la tabla de módulos ofrece campos de «vuelo delantero» y «vuelo
+  trasero» que recalculan el pivote (`pivote = vuelo ± empate/2`) —editar el vuelo o el
+  pivote es equivalente—, y al cambiar el empate se refrescan los vuelos derivados.
+  Nuevos AVISOS no bloqueantes (`vehicleWarnings`, mostrados en `#vehWarnings`): empate
+  no positivo o mayor que la longitud del módulo, y vuelo negativo (la rodadura queda
+  fuera de la caja). Es geometría de entrada/presentación: escribe en los campos que el
+  motor ya consume, así que no altera la envolvente ni ningún valor dorado.
+  `tests/vuelo.test.ts` y `e2e/vuelo.spec.ts` lo cubren (E4-B3).
+- Coche de dos bogies (módulo `biBogie`): nuevo tipo de módulo que modela un cuerpo
+  rígido único sobre DOS pivotes (`pivotFrontFromFront`, `pivotRearFromFront`). Cada
+  pivote se ancla en el punto medio de la cuerda de su propio empate (desplazado el
+  interior la sagitta p²/8R, igual que el bogie rígido); el pivote trasero se resuelve
+  por rigidez |P(s_f)−P(s_r)| = a con bisección en dos fases, y el rumbo del cuerpo es
+  la cuerda entre anclajes. Se excluye del solver de equilibrio (sin lazo libre). La
+  cadena expone ahora `chain.pivots` (posiciones mundiales de TODOS los pivotes, fuera
+  del eje para el biBogie) y `chain.sFronts` (arco del pivote delantero por módulo
+  guiado, para el warm start), manteniendo `sPivots` como `[s_f, s_r]` del biBogie. El
+  panel de vehículo ofrece el tipo «2 bogies» con campos de ambos pivotes/empate (sin
+  selector de tipo de bogie), el esquema y el viewport dibujan los dos bastidores y sus
+  cuatro ejes, la equivalencia UIC aporta los dos pivotes, y hay un preset «Coche 2
+  bogies ~14 m (validación)». Validación: ambos pivotes en [0,L] y a ≥ 1.0 m; rótula
+  rígida aguas arriba prohibida, bisectriz adyacente permitida. Nuevos dorados en R25
+  (interior 1.7007, exterior 1.7803, inset 17.1 mm, s_f−s_r>9.0, UIC a=9.0);
+  `tests/bibogie.test.ts` y `e2e/bibogie.spec.ts` lo cubren. Los 19 dorados previos
+  quedan intactos (el motor de módulos existentes se comporta bit a bit igual) (E4-B2).
+- Importar la vía como dos carriles (`railsToAxis`): nuevo modo del import DXF que
+  agrupa las cadenas en componentes conexas, toma las dos más largas como rieles y
+  deriva el eje de vía como su línea media, fijando el ancho de vía (`state.gauge`)
+  con la separación medida (mediana de las distancias entre rieles). Casilla
+  «importar como dos carriles» en el panel Trazado (ES/FR/EN); actualiza el eje, el
+  ancho de vía mostrado (mm) y recalcula. Es un cambio de ORIGEN del eje, no del
+  barrido: la línea media es la misma que el motor ya asume para vía de ancho fijo,
+  así que no altera la envolvente ni ningún valor dorado (los 19 dorados intactos).
+  `tests/rails.test.ts` (rectas paralelas, arcos concéntricos, una sola polilínea)
+  y `e2e/rails-import.spec.ts` (import de dos rectas ⇒ gauge 1435 mm) lo cubren (E4-B1).
+- Bastidor de bogie y ejes dibujados: el viewport y el esquema a escala dibujan,
+  por cada módulo bogie, el bastidor (rectángulo empate × `bogieWidth`) y sus dos
+  ejes transversales a ±gauge/2 (las ruedas apoyando en el carril), reconstruidos
+  de la solución de cadena (`sPivots` + empate) sin tocar el motor. Ancho del
+  bastidor editable por módulo (`bogieWidth`, opcional; por defecto `gauge + 0.2`),
+  añadido al esquema JSON del módulo. Es PRESENTACIÓN: no altera la envolvente
+  barrida ni ningún valor dorado. En el viewport se ata a las capas vehículo +
+  carriles. `e2e/bogies.spec.ts` verifica que hay un bastidor y dos ejes por bogie
+  y que el recuento sigue al cambiar de preset (E4-A2).
+- Vía de dos carriles y ancho de vía (`gauge`): el viewport dibuja los dos
+  carriles a ±gauge/2 del eje por la normal de estación, como capa conmutable
+  («carriles», tecla 6) y con su entrada de leyenda. Ancho de vía editable en el
+  panel Trazado (mm), por defecto 1.435 (estándar), persistido en el proyecto y
+  el autosave. Es PRESENTACIÓN honesta: para vía de ancho fijo el eje montado
+  sigue la línea media dentro del juego de pestaña ya modelado, así que los
+  carriles no alteran la envolvente barrida ni ningún valor dorado (el motor no
+  se toca). Incluido en el export SVG del encuadre. `e2e/rails.spec.ts` verifica
+  la capa, el ancho por defecto, su sincronización con el estado y el atajo (E4-A1).
 - Accesibilidad (DESIGN_SPEC §5): navegación completa por teclado con atajos
   globales centralizados en `src/ui/shortcuts.ts` —Espacio reproduce/pausa, ←→
   recorren el deslizador de PK (±10 con Mayús), F encuadra, 1–5 conmutan las capas

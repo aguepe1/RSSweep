@@ -21,6 +21,9 @@ export const C = {
   // fuelle entre módulos
   fuelle: "#78838F",
   fuelleFill: "rgba(120,131,143,.28)",
+  // carriles de la vía (infraestructura; gris acero) y bastidor/ejes del bogie
+  rail: "#546E7A",
+  bogie: "#37474F",
   // obstáculos e invasión de gálibo
   obstacle: "#1A1D21",
   invasion: "#C62828",
