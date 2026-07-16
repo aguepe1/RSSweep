@@ -13,7 +13,7 @@ import type {
 import { footprint, solveChainEq } from "./chain";
 import { envelopeRibbon, remapStations } from "./envelope";
 import { kinStationAdd } from "./kinematic";
-import { reverseTrack } from "./track";
+import { makeTrack, reverseTrack } from "./track";
 import { vehicleLength } from "./vehicle";
 
 /** Resuelve la cadena a lo largo de `track` en [sStart,sEnd] y devuelve las huellas
@@ -60,8 +60,15 @@ export function runSweep(track: Track, v: Vehicle, opts: SweepOpts = {}): SweepR
   const both = !!opts.both;
 
   const vlenTotal = vehicleLength(v);
-  const sStart = opts.sStart != null ? opts.sStart : vlenTotal + 1.0;
-  const sEnd = opts.sEnd != null ? opts.sEnd : track.length - 1.0;
+  // Travesía completa (E4-B4, opt-in): el barrido cubre desde que el frente entra
+  // (s1=0) hasta que la cola sale (s1=longitud+Lveh). Fuera del trazado el eje se
+  // prolonga recto (tangente del extremo) mediante un track extrapolante. El modo
+  // por defecto NO cambia — los valores dorados quedan intactos.
+  const extend = !!opts.fullTraversal;
+  const wTrack = extend ? makeTrack(track.s, track.x, track.y, true) : track;
+  const sStart = opts.sStart != null ? opts.sStart : extend ? 0 : vlenTotal + 1.0;
+  const sEnd =
+    opts.sEnd != null ? opts.sEnd : extend ? track.length + vlenTotal : track.length - 1.0;
   if (sEnd <= sStart) return { error: "El trazado es demasiado corto para este vehiculo." };
 
   const nSt = Math.floor(track.length / dst) + 1;
@@ -84,7 +91,7 @@ export function runSweep(track: Track, v: Vehicle, opts: SweepOpts = {}): SweepR
 
   // Ida (sentido de dibujo del eje).
   const fwdSpan = both ? 0.5 : 1;
-  const fwd = solveSteps(track, v, sStart, sEnd, step, nJoints, (f) =>
+  const fwd = solveSteps(wTrack, v, sStart, sEnd, step, nJoints, (f) =>
     opts.onProgress?.(f * fwdSpan),
   );
   if (!fwd.steps.length)
@@ -106,7 +113,8 @@ export function runSweep(track: Track, v: Vehicle, opts: SweepOpts = {}): SweepR
   // paso se traslada al marco de ida para que la ventana longitudinal encaje: el
   // vehículo ocupa [L−s1r, L−s1r+Lveh] en abscisa de ida (E2-5).
   if (both) {
-    const rTrack = reverseTrack(track);
+    const rTrack0 = reverseTrack(track);
+    const rTrack = extend ? makeTrack(rTrack0.s, rTrack0.x, rTrack0.y, true) : rTrack0;
     const rev = solveSteps(rTrack, v, sStart, sEnd, step, nJoints, (f) =>
       opts.onProgress?.(0.5 + f * 0.5),
     );

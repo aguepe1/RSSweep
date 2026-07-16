@@ -134,6 +134,7 @@ export function activeHyp(): string {
   if (on("kinEnabled")) parts.push(t("hyp.kin"));
   if (on("uicEnabled")) parts.push(t("hyp.uic"));
   if (on("bothDirs")) parts.push(t("hyp.bidir"));
+  if (on("fullTraversal")) parts.push(t("hyp.fullTraversal"));
   return parts.join(" · ");
 }
 

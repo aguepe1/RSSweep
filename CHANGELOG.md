@@ -8,6 +8,24 @@ Todas las versiones notables de BARRIDO. El formato sigue
 
 ### Añadido
 
+- Barrido de travesía completa (entrada→salida), opt-in: nuevo `SweepOpts.fullTraversal`
+  y casilla «Travesía completa (entrada→salida)» en la sección de Cálculo. Por defecto el
+  barrido solo cubre el tramo con el vehículo íntegramente dentro del trazado (rango
+  `[Lveh+1, longitud−1]`); activándolo, cubre desde que el frente entra (`s1=0`) hasta que
+  la cola sale (`s1=longitud+Lveh`). Más allá de los extremos el eje se **prolonga en línea
+  recta con el rumbo del extremo (tangente)** mediante `makeTrack(s,x,y,extend=true)`, que
+  desactiva el recorte de `pos()` y deja que la interpolación lineal extrapole (hipótesis
+  documentada en ENGINE_NOTES §6). Es **opt-in**: el modo por defecto no cambia y los 19
+  valores dorados —que se calculan con el rango por defecto— quedan intactos. La hipótesis
+  se anota en la barra de estado. `tests/traversal.test.ts` y `e2e/traversal.spec.ts` lo
+  cubren (E4-B4/B5).
+- Configuración del vehículo reorganizada para claridad: «Rótulas y fuelles» se traslada
+  del panel de resultados a la pestaña **Vehículo** (junto a módulos, esquema y espejos),
+  el bloque del coche de dos bogies gana un rótulo de sección y el pivote del segundo bogie
+  se etiqueta «PIVOTE 2.º BOGIE (↦desde frente)» para que sea localizable y editable sin
+  ambigüedad. Nuevo botón **«Guardar vehículo»** que descarga la configuración (`.json`
+  reutilizable, misma ruta que Archivo ▸ Importar/Exportar vehículo) y confirma visiblemente
+  el guardado. Solo es reubicación/presentación de UI: no toca el motor ni los dorados (E4-B5).
 - Colocación del bogie dentro del coche (vuelo y empate): el esquema a escala acota
   ahora el vuelo delantero (testero↦eje), el empate de cada bogie y el vuelo trasero
   (eje↦testero); la tabla de módulos ofrece campos de «vuelo delantero» y «vuelo

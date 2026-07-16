@@ -245,6 +245,20 @@ y 11.50 (a = 9.0), empate 1.85. Trazado = recta 15 + arco R (90°) + recta 15.
    ignoran de facto.
 7. Insuficiencia escalada por c (proporcional a curvatura): simplificación declarada.
 8. Rendimiento bisectriz ~0.5–1.5 s por barrido: llevar a Web Worker (E2-2).
+9. **Travesía completa por extrapolación tangente (E4-B4, opt-in).** Con
+   `SweepOpts.fullTraversal` el barrido cubre entrada→salida (`s1 ∈ [0, longitud+Lveh]`)
+   en vez del rango con el vehículo íntegramente dentro (`[Lveh+1, longitud−1]`). Fuera del
+   trazado el eje se **prolonga en línea recta con el rumbo del segmento extremo (tangente)**:
+   `makeTrack(s,x,y,extend=true)` desactiva el recorte de `pos()` a `[0, longitud]`, de modo
+   que `locate()` fija el índice en el primer/último tramo y el parámetro `t` sale de `[0,1]`;
+   la interpolación lineal existente extrapola así con la pendiente del extremo. HIPÓTESIS:
+   la vía no cambia de curvatura al salir del trazado modelado (se supone recta a la entrada
+   y a la salida). Si el trazado real continúa en curva más allá de los extremos importados,
+   la huella de entrada/salida es optimista; la mitigación correcta es importar el eje
+   completo. Es **opt-in**: los 19 dorados se calculan con el rango por defecto (recorte
+   activo) y quedan invariantes bit a bit. Cubierto por `tests/traversal.test.ts` (incluye la
+   comprobación de que en recta la travesía no ensancha y de que la envolvente es monótona no
+   decreciente al ampliar el rango).
 
 ## 6. Historial de bugs con moraleja
 

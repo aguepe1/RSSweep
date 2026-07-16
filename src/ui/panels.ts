@@ -329,6 +329,7 @@ export function renderVehiclePanel(): void {
       const rb = document.createElement("tr");
       rb.className = "modx";
       rb.innerHTML = `<td></td><td colspan="6"><div class="sub">
+        <div class="subcap">Bogie único · empate y vuelos (testero↦eje)</div>
         <div class="f"><label>TIPO BOGIE</label><select data-f="bogieType">
           <option value="pivotante" ${(m.bogieType || "pivotante") === "pivotante" ? "selected" : ""}>pivotante</option>
           <option value="rigido" ${m.bogieType === "rigido" ? "selected" : ""}>rígido</option>
@@ -345,7 +346,8 @@ export function renderVehiclePanel(): void {
       const rb = document.createElement("tr");
       rb.className = "modx";
       rb.innerHTML = `<td></td><td colspan="6"><div class="sub">
-        <div class="f"><label>PIVOTE TRASERO ↦frente m</label><input type="number" step="0.05" min="0" value="${m.pivotRearFromFront ?? ""}" data-f="pivotRearFromFront"></div>
+        <div class="subcap">Coche de 2 bogies · pivote delantero arriba (col. «Piv»), aquí el 2.º bogie</div>
+        <div class="f"><label>PIVOTE 2.º BOGIE (↦desde frente) m</label><input type="number" step="0.05" min="0" value="${m.pivotRearFromFront ?? ""}" data-f="pivotRearFromFront" title="Posición del bogie trasero medida desde el testero delantero del coche"></div>
         <div class="f"><label>EMPATE bogie m (vacío=global)</label><input type="number" step="0.05" min="0.5" value="${m.wheelbase || ""}" placeholder="${state.vehicle.wheelbase}" data-f="wheelbase"></div>
         <div class="f"><label>VUELO DELANT. ↦eje m</label><input type="number" step="0.05" value="${+frontVuelo.toFixed(3)}" data-f="frontVuelo"></div>
         <div class="f"><label>ART. DELANT. ↦frente m</label><input type="number" step="0.05" min="0" value="${m.jointFrontOff || 0}" data-f="jointFrontOff"></div>
@@ -659,6 +661,15 @@ export function initPanels(): void {
   $("btnExportVehJson").addEventListener("click", () =>
     download("vehiculo.json", JSON.stringify(state.vehicle, null, 2), "application/json"),
   );
+
+  // Guardar vehículo (E4-B5): descarga la configuración y confirma visiblemente
+  // que quedó guardada. Reutiliza la misma ruta de export del vehículo suelto.
+  $("btnSaveVeh").addEventListener("click", () => {
+    download("vehiculo.json", JSON.stringify(state.vehicle, null, 2), "application/json");
+    const msg = $("vehSaveMsg");
+    msg.textContent = t("veh.save.ok");
+    msg.style.display = "block";
+  });
   $("btnImportVehJson").addEventListener("click", () => $<HTMLInputElement>("fileVehJson").click());
   $("fileVehJson").addEventListener("change", async (e) => {
     const input = e.target as HTMLInputElement;

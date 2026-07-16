@@ -16,6 +16,8 @@ export interface SweepRequest {
   requiredMargin: number;
   /** Une las envolventes de ida y vuelta (E2-5). */
   both: boolean;
+  /** Barrido de travesía completa entrada→salida con eje extrapolado (E4-B4). */
+  fullTraversal: boolean;
 }
 
 /** Avance del barrido en [0,1]. */

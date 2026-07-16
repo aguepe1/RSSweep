@@ -22,6 +22,7 @@ ctx.onmessage = (e: MessageEvent<SweepRequest>) => {
     step: req.step,
     kin: req.kin,
     both: req.both,
+    fullTraversal: req.fullTraversal,
     onProgress: (frac) => {
       const pct = Math.floor(frac * 100);
       if (pct !== lastPct) {

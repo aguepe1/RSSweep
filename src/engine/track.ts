@@ -60,7 +60,12 @@ export function reverseTrack(track: Track): Track {
   return trackFromPoints(pts);
 }
 
-export function makeTrack(s: Float64Array, x: Float64Array, y: Float64Array): Track {
+export function makeTrack(
+  s: Float64Array,
+  x: Float64Array,
+  y: Float64Array,
+  extend = false,
+): Track {
   const n = s.length;
   const length = s[n - 1];
   function locate(sv: number): number {
@@ -76,7 +81,11 @@ export function makeTrack(s: Float64Array, x: Float64Array, y: Float64Array): Tr
     return lo;
   }
   function pos(sv: number): Vec2 {
-    sv = Math.max(0, Math.min(length, sv));
+    // Por defecto el eje se recorta a [0, longitud]. Con `extend` la posición se
+    // prolonga en línea recta (tangente del segmento extremo) fuera del rango: el
+    // índice queda fijado en el primer/último tramo y el parámetro t sale de [0,1],
+    // de modo que la interpolación lineal extrapola con el rumbo del extremo.
+    if (!extend) sv = Math.max(0, Math.min(length, sv));
     const i = locate(sv);
     const t = (sv - s[i]) / (s[i + 1] - s[i]);
     return [x[i] + t * (x[i + 1] - x[i]), y[i] + t * (y[i + 1] - y[i])];

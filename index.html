@@ -522,6 +522,17 @@
         grid-template-columns: repeat(3, 1fr);
         gap: 6px;
       }
+      tr.modx .sub .subcap {
+        grid-column: 1 / -1;
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        border-bottom: 1px solid var(--hair);
+        padding-bottom: 3px;
+        margin-bottom: 1px;
+      }
       tr.modx .sub .f label {
         display: block;
         font-size: 9px;
@@ -607,6 +618,13 @@
       }
       .err {
         color: var(--c-footprint);
+        font-size: 11px;
+        line-height: 1.5;
+        margin-top: 6px;
+        font-family: var(--mono);
+      }
+      .ok {
+        color: var(--c-uic);
         font-size: 11px;
         line-height: 1.5;
         margin-top: 6px;
@@ -1000,6 +1018,33 @@
                 <div class="err" id="vehErrors"></div>
                 <div class="warn" id="vehWarnings"></div>
               </div>
+              <div class="sec">
+                <h2 data-i18n="joints.title">Rótulas y fuelles</h2>
+                <div id="joints"></div>
+                <div class="hint" data-i18n-html="hint.joints">
+                  Tipo <b>libre</b>: pivote sin control de lazo (cuerda entre articulaciones). Tipo
+                  <b>rígida</b>: bloquea el giro (los módulos se mueven solidarios); no admisible
+                  aguas arriba de un bogie. El hueco de testeros lo cubre el fuelle, incluido en la
+                  huella.
+                </div>
+              </div>
+              <div class="sec">
+                <h2 data-i18n="veh.save.title">Guardar configuración</h2>
+                <button
+                  class="btn primary"
+                  id="btnSaveVeh"
+                  style="width: 100%"
+                  data-i18n="veh.save"
+                >
+                  Guardar vehículo
+                </button>
+                <div class="ok" id="vehSaveMsg" style="display: none"></div>
+                <div class="hint" data-i18n-html="hint.vehSave">
+                  Descarga la configuración del vehículo (módulos, pivotes, empates, rótulas y
+                  fuelles) como fichero <b>.json</b> reutilizable. Es la misma configuración que se
+                  importa desde <b>Archivo ▸ Importar vehículo</b>.
+                </div>
+              </div>
             </div>
 
             <div class="tabpanel" data-tab="track" role="tabpanel">
@@ -1218,6 +1263,16 @@
                   vehículos asimétricos o trazados con contracurvas, donde cada sentido genera una
                   huella distinta.
                 </div>
+                <div class="row">
+                  <label for="fullTraversal" data-i18n="lbl.fullTraversal"
+                    >Travesía completa (entrada→salida)</label
+                  ><input type="checkbox" id="fullTraversal" style="flex: 0 0 auto" />
+                </div>
+                <div class="hint" data-i18n-html="hint.fullTraversal">
+                  Amplía el barrido desde que el frente entra al trazado hasta que la cola sale, en
+                  vez de solo el tramo con el vehículo íntegramente dentro. Fuera de los extremos el
+                  eje se prolonga en línea recta (tangente).
+                </div>
                 <button class="btn primary" id="btnRun" style="width: 100%" data-i18n="calc.run">
                   Calcular huella
                 </button>
@@ -1418,16 +1473,6 @@
                 >
                   Informe gálibo CSV
                 </button>
-              </div>
-            </div>
-            <div class="jointsblock">
-              <h3 data-i18n="joints.title">Rótulas y fuelles</h3>
-              <div id="joints"></div>
-              <div class="hint" data-i18n-html="hint.joints">
-                Tipo <b>libre</b>: pivote sin control de lazo (cuerda entre articulaciones). Tipo
-                <b>rígida</b>: bloquea el giro (los módulos se mueven solidarios); no admisible
-                aguas arriba de un bogie. El hueco de testeros lo cubre el fuelle, incluido en la
-                huella.
               </div>
             </div>
           </div>

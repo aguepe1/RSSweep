@@ -76,7 +76,9 @@ test.describe("E2-1 · barrido en Web Worker (progreso + cancelación)", () => {
     await page.locator("#trackPreset").selectOption("1");
 
     // poner las rótulas en bisectriz: el solver de equilibrio es lento, así que
-    // el barrido dura lo suficiente para observar el progreso y cancelarlo
+    // el barrido dura lo suficiente para observar el progreso y cancelarlo.
+    // Rótulas y fuelles viven ahora en la pestaña Vehículo (E4-B5).
+    await page.locator('.tab[data-tab="veh"]').click();
     const jointCount = await page.locator("#joints .joint").count();
     for (let i = 0; i < jointCount; i++) {
       await page

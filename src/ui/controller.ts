@@ -108,6 +108,7 @@ export function run(): void {
     obstacles: state.obstacles,
     requiredMargin: (parseFloat($<HTMLInputElement>("reqMargin").value) || 0) / 1000,
     both: $<HTMLInputElement>("bothDirs").checked,
+    fullTraversal: $<HTMLInputElement>("fullTraversal").checked,
   };
 
   const w = new SweepWorker();
@@ -166,6 +167,7 @@ export function initController(): void {
   $("btnCancel").addEventListener("click", cancelRun);
   $("simStep").addEventListener("change", run);
   $("bothDirs").addEventListener("change", run);
+  $("fullTraversal").addEventListener("change", run);
 
   $("btnPlay").addEventListener("click", () => {
     if (!state.sweep) return;

@@ -209,6 +209,14 @@ export interface SweepOpts {
    * desde un Web Worker. Se invoca de forma síncrona dentro del bucle.
    */
   onProgress?: (frac: number) => void;
+  /**
+   * Travesía completa (E4-B4, opt-in): el barrido cubre desde que el frente entra
+   * al trazado (s1=0) hasta que la cola sale (s1=longitud+Lveh), en vez del rango
+   * por defecto con el vehículo íntegramente dentro. Fuera de los extremos el eje
+   * se prolonga en línea recta con el rumbo del extremo (tangente). Por defecto
+   * `false`: NO altera los valores dorados (que se calculan con el rango por defecto).
+   */
+  fullTraversal?: boolean;
 }
 
 export interface Stations {

@@ -93,6 +93,9 @@ const DICT: Record<Locale, Record<string, string>> = {
     "lbl.bothDirs": "Analizar ambos sentidos",
     "hint.both":
       "Resuelve el barrido de ida y de vuelta y une las envolventes. Necesario en vehículos asimétricos o trazados con contracurvas, donde cada sentido genera una huella distinta.",
+    "lbl.fullTraversal": "Travesía completa (entrada→salida)",
+    "hint.fullTraversal":
+      "Amplía el barrido desde que el frente entra al trazado hasta que la cola sale, en vez de solo el tramo con el vehículo íntegramente dentro. Fuera de los extremos el eje se prolonga en línea recta (tangente).",
     "sec.obs": "Obstáculos · clash check",
     "btn.importObs": "Importar obstáculos DXF…",
     "lbl.reqMargin": "Margen requerido",
@@ -132,6 +135,11 @@ const DICT: Record<Locale, Record<string, string>> = {
     "joints.title": "Rótulas y fuelles",
     "hint.joints":
       "Tipo <b>libre</b>: pivote sin control de lazo (cuerda entre articulaciones). Tipo <b>rígida</b>: bloquea el giro (los módulos se mueven solidarios); no admisible aguas arriba de un bogie. El hueco de testeros lo cubre el fuelle, incluido en la huella.",
+    "veh.save.title": "Guardar configuración",
+    "veh.save": "Guardar vehículo",
+    "veh.save.ok": "Configuración del vehículo guardada (vehiculo.json).",
+    "hint.vehSave":
+      "Descarga la configuración del vehículo (módulos, pivotes, empates, rótulas y fuelles) como fichero <b>.json</b> reutilizable. Es la misma configuración que se importa desde <b>Archivo ▸ Importar vehículo</b>.",
     "sb.file": "Fichero",
     "sb.units": "metros · radianes",
     // — cajetín (etiquetas dinámicas) —
@@ -157,6 +165,7 @@ const DICT: Record<Locale, Record<string, string>> = {
     "hyp.kin": "cinemática",
     "hyp.uic": "UIC 505",
     "hyp.bidir": "bidireccional",
+    "hyp.fullTraversal": "travesía completa",
   },
   fr: {
     "menu.file": "Fichier",
@@ -236,6 +245,9 @@ const DICT: Record<Locale, Record<string, string>> = {
     "lbl.bothDirs": "Analyser les deux sens",
     "hint.both":
       "Résout le balayage aller et retour et fusionne les enveloppes. Nécessaire pour les véhicules asymétriques ou les tracés à contre-courbes, où chaque sens génère une empreinte différente.",
+    "lbl.fullTraversal": "Traversée complète (entrée→sortie)",
+    "hint.fullTraversal":
+      "Étend le balayage depuis l'entrée de l'avant sur le tracé jusqu'à la sortie de l'arrière, au lieu du seul tronçon où le véhicule est entièrement à l'intérieur. Au-delà des extrémités, l'axe se prolonge en ligne droite (tangente).",
     "sec.obs": "Obstacles · clash check",
     "btn.importObs": "Importer obstacles DXF…",
     "lbl.reqMargin": "Marge requise",
@@ -275,6 +287,11 @@ const DICT: Record<Locale, Record<string, string>> = {
     "joints.title": "Articulations et soufflets",
     "hint.joints":
       "Type <b>libre</b> : pivot sans contrôle de lacet (corde entre articulations). Type <b>rigide</b> : bloque la rotation (les modules se déplacent solidairement) ; non admissible en amont d’un bogie. L’espace entre faces est couvert par le soufflet, inclus dans l’empreinte.",
+    "veh.save.title": "Enregistrer la configuration",
+    "veh.save": "Enregistrer le véhicule",
+    "veh.save.ok": "Configuration du véhicule enregistrée (vehiculo.json).",
+    "hint.vehSave":
+      "Télécharge la configuration du véhicule (modules, pivots, empattements, articulations et soufflets) sous forme de fichier <b>.json</b> réutilisable. C’est la même configuration importée depuis <b>Fichier ▸ Importer véhicule</b>.",
     "sb.file": "Fichier",
     "sb.units": "mètres · radians",
     "cart.noCalc": "Aucun calcul",
@@ -298,6 +315,7 @@ const DICT: Record<Locale, Record<string, string>> = {
     "hyp.kin": "cinématique",
     "hyp.uic": "UIC 505",
     "hyp.bidir": "bidirectionnel",
+    "hyp.fullTraversal": "traversée complète",
   },
   en: {
     "menu.file": "File",
@@ -376,6 +394,9 @@ const DICT: Record<Locale, Record<string, string>> = {
     "lbl.bothDirs": "Analyse both directions",
     "hint.both":
       "Solves the forward and return sweep and merges the envelopes. Needed for asymmetric vehicles or tracks with reverse curves, where each direction yields a different footprint.",
+    "lbl.fullTraversal": "Full traversal (entry→exit)",
+    "hint.fullTraversal":
+      "Extends the sweep from when the front enters the track until the tail exits, instead of only the section with the vehicle fully inside. Beyond the ends the axis is extended in a straight line (tangent).",
     "sec.obs": "Obstacles · clash check",
     "btn.importObs": "Import obstacles DXF…",
     "lbl.reqMargin": "Required margin",
@@ -415,6 +436,11 @@ const DICT: Record<Locale, Record<string, string>> = {
     "joints.title": "Articulations and bellows",
     "hint.joints":
       "Type <b>free</b>: pivot with no yaw control (chord between articulations). Type <b>rigid</b>: locks rotation (modules move together); not admissible upstream of a bogie. The end-face gap is covered by the bellows, included in the footprint.",
+    "veh.save.title": "Save configuration",
+    "veh.save": "Save vehicle",
+    "veh.save.ok": "Vehicle configuration saved (vehiculo.json).",
+    "hint.vehSave":
+      "Downloads the vehicle configuration (modules, pivots, wheelbases, articulations and bellows) as a reusable <b>.json</b> file. It is the same configuration imported from <b>File ▸ Import vehicle</b>.",
     "sb.file": "File",
     "sb.units": "metres · radians",
     "cart.noCalc": "No computation",
@@ -438,6 +464,7 @@ const DICT: Record<Locale, Record<string, string>> = {
     "hyp.kin": "kinematic",
     "hyp.uic": "UIC 505",
     "hyp.bidir": "bidirectional",
+    "hyp.fullTraversal": "full traversal",
   },
 };
 
