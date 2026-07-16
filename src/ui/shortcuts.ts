@@ -7,6 +7,8 @@
 // No se disparan mientras el foco está en un campo editable (INPUT/SELECT/TEXTAREA),
 // salvo el rango de scrub, para no interferir con la escritura.
 
+import { isTrainEditorOpen } from "./train-editor";
+
 /** ¿El usuario pidió movimiento reducido? (sin auto-reproducción animada). */
 export function prefersReducedMotion(): boolean {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
@@ -51,6 +53,9 @@ function trigger(id: string): void {
 /** Cablea los atajos globales de teclado (§5). */
 export function initShortcuts(): void {
   window.addEventListener("keydown", (e) => {
+    // Con el editor del tren abierto, sus propios controles gobiernan el teclado
+    // (Esc cierra); no dejamos que los atajos del shell se filtren.
+    if (isTrainEditorOpen()) return;
     const mod = e.ctrlKey || e.metaKey;
 
     // Atajos con modificador: guardar (Ctrl+S) e informe (Ctrl+P).

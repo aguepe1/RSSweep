@@ -23,6 +23,7 @@ import type {
   KinRules,
   Mirror,
   ModuleType,
+  Vehicle,
   VehicleModule,
 } from "../types";
 
@@ -43,6 +44,31 @@ function chamferOf(m: VehicleModule): { d: number; w: number } | null {
   return d > 1e-6 || w > 1e-6 ? { d, w } : null;
 }
 import { $, clone, download, fmt } from "./dom";
+
+/** Rellena los pivotes por defecto de un módulo según su `type` ya asignado.
+ *  Idéntico a la lógica del cambio de tipo de la tabla (E4-B6, reutilizado por el
+ *  editor interactivo). No pisa valores existentes. */
+export function applyModuleTypeDefaults(m: VehicleModule): void {
+  if (m.type === "bogie" && m.pivotFromFront == null) m.pivotFromFront = m.length / 2;
+  if (m.type === "biBogie") {
+    if (m.pivotFrontFromFront == null) m.pivotFrontFromFront = m.length / 6;
+    if (m.pivotRearFromFront == null)
+      m.pivotRearFromFront = Math.max(m.pivotFrontFromFront + 1, (5 * m.length) / 6);
+  }
+}
+
+/** Añade una caja por defecto al final del vehículo (misma definición que el botón
+ *  «+ Añadir módulo» de la tabla). Devuelve el módulo creado. */
+export function addDefaultModule(v: Vehicle): VehicleModule {
+  const m: VehicleModule = {
+    id: "M" + (v.modules.length + 1),
+    type: "suspendido",
+    length: 5.5,
+    width: 2.65,
+  };
+  v.modules.push(m);
+  return m;
+}
 import { pkFmt } from "./pk";
 import { state } from "./state";
 import { run, setStatus } from "./controller";
@@ -362,12 +388,7 @@ export function renderVehiclePanel(): void {
         if (f === "id") m.id = el.value;
         else if (f === "type") {
           m.type = el.value as ModuleType;
-          if (m.type === "bogie" && m.pivotFromFront == null) m.pivotFromFront = m.length / 2;
-          if (m.type === "biBogie") {
-            if (m.pivotFrontFromFront == null) m.pivotFrontFromFront = m.length / 6;
-            if (m.pivotRearFromFront == null)
-              m.pivotRearFromFront = Math.max(m.pivotFrontFromFront + 1, (5 * m.length) / 6);
-          }
+          applyModuleTypeDefaults(m);
           renderVehiclePanel();
         } else if (f === "bogieType") m.bogieType = el.value as BogieType;
         else if (f === "wheelbase") {
@@ -639,12 +660,7 @@ export function initPanels(): void {
 
   // añadir módulo
   $("btnAddMod").addEventListener("click", () => {
-    state.vehicle.modules.push({
-      id: "M" + (state.vehicle.modules.length + 1),
-      type: "suspendido",
-      length: 5.5,
-      width: 2.65,
-    });
+    addDefaultModule(state.vehicle);
     renderVehiclePanel();
   });
 

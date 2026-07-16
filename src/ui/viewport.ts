@@ -9,6 +9,7 @@ import { state } from "./state";
 import { C, setViewportDark, viewportTheme } from "./theme";
 import { hoverS, layerOn, requestRedraw, setHoverS } from "./vpshared";
 import { exportViewportPng, exportViewportSvg } from "./viewport-export";
+import { isTrainEditorOpen } from "./train-editor";
 
 let vp: HTMLCanvasElement;
 let vpx: CanvasRenderingContext2D;
@@ -648,6 +649,7 @@ export function initViewport(onDraw: () => void): void {
   });
   $("btnMeasure").addEventListener("click", () => setMeasure(!measure.on));
   window.addEventListener("keydown", (e) => {
+    if (isTrainEditorOpen()) return; // el editor del tren gobierna el teclado
     const tag = (e.target as HTMLElement)?.tagName;
     if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
     if (e.key === "m" || e.key === "M") setMeasure(!measure.on);

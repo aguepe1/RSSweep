@@ -8,6 +8,20 @@ Todas las versiones notables de BARRIDO. El formato sigue
 
 ### Añadido
 
+- Editor interactivo del tren (E4-B6): nuevo botón «Editar tren…» que abre un **overlay
+  a pantalla completa** con el vehículo dibujado a escala en un SVG interactivo. Los
+  **bogies se arrastran** a lo largo de su caja para fijar su posición (pivote; en coches
+  de dos bogies, el pivote más cercano), y al pulsar una **caja**, un **bogie** o un
+  **fuelle** se abre una ventana flotante con sus parámetros y un botón «aplicar a todos»
+  (empate y ancho a todos los bogies; tipo/hueco/fuelle/límite/rigidez a todas las
+  rótulas; ancho a todas las cajas). La ventana de caja permite además duplicar y eliminar;
+  la barra del editor tiene «Añadir caja», empate global y espejos. Es **solo UI** sobre
+  `state.vehicle` (los mismos campos que editan las tablas): muta el modelo en sitio y
+  sincroniza con las tablas, el mini-esquema y el barrido llamando a `renderVehiclePanel()`
+  y `run()`; el undo/redo lo captura el historial existente. **No toca el motor ni los
+  valores dorados.** `Esc` o ✕ cierran; con el editor abierto, los atajos del shell no se
+  filtran. i18n ES/FR/EN. `e2e/train-editor.spec.ts` lo cubre (drag, ventanas, aplicar a
+  todos, añadir caja).
 - Barrido de travesía completa (entrada→salida), opt-in: nuevo `SweepOpts.fullTraversal`
   y casilla «Travesía completa (entrada→salida)» en la sección de Cálculo. Por defecto el
   barrido solo cubre el tramo con el vehículo íntegramente dentro del trazado (rango

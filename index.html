@@ -860,6 +860,146 @@
         color: var(--ink);
         font-weight: 600;
       }
+
+      /* Editor interactivo del tren (E4-B6) — overlay a pantalla completa */
+      .train-editor {
+        position: fixed;
+        inset: 0;
+        z-index: 200;
+        display: flex;
+        flex-direction: column;
+        background: var(--paper);
+      }
+      .train-editor[hidden] {
+        display: none;
+      }
+      .train-head {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--hair2);
+        background: var(--surface);
+      }
+      .train-head h2 {
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ink);
+      }
+      .train-head-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .train-toolbar {
+        flex: 0 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 18px;
+        padding: 8px 16px;
+        border-bottom: 1px solid var(--hair);
+        background: var(--surface2);
+      }
+      .train-toolbar .te-field {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .train-toolbar .te-field label {
+        font-size: 11px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .train-toolbar .te-field input[type="number"] {
+        width: 68px;
+      }
+      .train-toolbar .te-field input[type="checkbox"] {
+        width: auto;
+      }
+      .train-toolbar .te-field .u {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .train-toolbar .te-hint {
+        flex: 1 1 240px;
+        font-size: 11px;
+        color: var(--faint);
+        text-align: right;
+      }
+      .train-canvas {
+        flex: 1 1 auto;
+        overflow: auto;
+        padding: 24px;
+        background: var(--paper);
+      }
+      .train-canvas svg {
+        display: block;
+        margin: 0 auto;
+      }
+      .train-canvas .te-bogie {
+        cursor: grab;
+      }
+      .train-canvas.dragging .te-bogie {
+        cursor: grabbing;
+      }
+      .train-canvas .te-car,
+      .train-canvas .te-fuelle {
+        cursor: pointer;
+      }
+      .train-canvas .te-hit:hover {
+        opacity: 0.82;
+      }
+      .train-popover {
+        position: fixed;
+        z-index: 210;
+        min-width: 230px;
+        max-width: 300px;
+        background: var(--surface);
+        border: 1px solid var(--hair2);
+        border-radius: 4px;
+        box-shadow: 0 4px 16px rgba(26, 29, 33, 0.16);
+        padding: 12px;
+      }
+      .train-popover[hidden] {
+        display: none;
+      }
+      .train-popover h3 {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--amber);
+        margin-bottom: 8px;
+      }
+      .train-popover .f {
+        margin-bottom: 7px;
+      }
+      .train-popover .f label {
+        display: block;
+        font-size: 9px;
+        letter-spacing: 0.04em;
+        color: var(--faint);
+        margin-bottom: 2px;
+      }
+      .train-popover .pop-row {
+        display: flex;
+        gap: 6px;
+      }
+      .train-popover .pop-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 4px;
+      }
+      .train-popover .pop-actions .btn {
+        flex: 1 1 auto;
+      }
     </style>
   </head>
   <body>
@@ -1011,6 +1151,14 @@
                   cabina.
                 </div>
                 <div id="schematic" style="margin-top: 12px"></div>
+                <button
+                  class="btn primary"
+                  id="btnEditTrain"
+                  style="width: 100%; margin-top: 8px"
+                  data-i18n="btn.editTrain"
+                >
+                  Editar tren…
+                </button>
                 <div id="modules" style="margin-top: 10px"></div>
                 <button class="btn" id="btnAddMod" style="width: 100%" data-i18n="btn.addMod">
                   + Añadir módulo
@@ -1495,6 +1643,47 @@
         <span class="seg" id="statusBarVersion">—</span>
       </div>
     </div>
+
+    <!-- Editor interactivo del tren (E4-B6): overlay a pantalla completa. Se rellena
+         y cablea desde src/ui/train-editor.ts; muta state.vehicle y sincroniza con
+         las tablas + barrido. -->
+    <div id="trainEditor" class="train-editor" role="dialog" aria-modal="true" hidden>
+      <div class="train-head">
+        <h2 data-i18n="te.title">Editor del tren</h2>
+        <div class="train-head-actions">
+          <button class="btn small" id="btnAddCaja" data-i18n="te.addCar">+ Añadir caja</button>
+          <button
+            class="btn small"
+            id="btnCloseTrain"
+            data-i18n-title="te.close"
+            aria-label="Cerrar"
+            title="Cerrar"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+      <div class="train-toolbar">
+        <div class="te-field">
+          <label for="teWheelbase" data-i18n="te.wheelbase">Empate global</label>
+          <input id="teWheelbase" type="number" step="0.05" min="0.5" /><span class="u">m</span>
+        </div>
+        <div class="te-field">
+          <label for="teMirEnabled" data-i18n="te.mirrors">Espejos / cámaras</label>
+          <input type="checkbox" id="teMirEnabled" />
+          <input id="teMirProt" type="number" step="0.01" min="0" data-i18n-title="te.mirProt" />
+          <input id="teMirOff" type="number" step="0.05" min="0" data-i18n-title="te.mirOff" />
+          <span class="u">m</span>
+        </div>
+        <div class="te-hint" data-i18n="te.hint">
+          Arrastra los bogies para colocarlos. Pulsa una caja, un bogie o un fuelle para editar sus
+          parámetros.
+        </div>
+      </div>
+      <div id="trainCanvas" class="train-canvas"></div>
+      <div id="trainPopover" class="train-popover" hidden></div>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
