@@ -146,6 +146,22 @@ export function initLayout(): void {
   document.querySelectorAll<HTMLElement>(".tab").forEach((b) => {
     b.addEventListener("click", () => activateTab(b.dataset.tab || "veh"));
   });
+
+  // Navegación de la narrativa secuencial: botones «Siguiente / Anterior» que
+  // saltan de una pestaña-paso a otra (delegan en `activateTab`, misma semántica
+  // que pulsar la pestaña). El panel de entrada se hace scroll al inicio.
+  document.querySelectorAll<HTMLElement>("[data-goto]").forEach((b) => {
+    b.addEventListener("click", () => {
+      activateTab(b.dataset.goto || "veh");
+      document.querySelector(".panel-body")?.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+
+  // Atajo «Calcular huella» del último paso: reutiliza el botón de cálculo real.
+  document.getElementById("btnRunFromObs")?.addEventListener("click", () => {
+    document.getElementById("btnRun")?.click();
+  });
+
   activateTab("veh");
   updateStatusBar({ file: state.trackName || "—", hyp: activeHyp() });
 }

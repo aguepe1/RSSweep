@@ -379,6 +379,69 @@
         display: block;
       }
 
+      /* Narrativa secuencial: pestañas numeradas + intro y navegación por pasos */
+      .tabs {
+        counter-reset: step;
+        flex-wrap: wrap;
+      }
+      .tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 9px;
+      }
+      .tab::before {
+        counter-increment: step;
+        content: counter(step);
+        display: inline-grid;
+        place-items: center;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 1px solid var(--hair2);
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--muted);
+        background: var(--surface2);
+      }
+      .tab.active::before {
+        background: var(--action);
+        border-color: var(--action);
+        color: var(--paper);
+      }
+      .stepintro {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        color: var(--action);
+        margin-bottom: 14px;
+        padding-bottom: 8px;
+        border-bottom: 1px dashed var(--hair);
+      }
+      .stepnav {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 4px;
+        padding-top: 14px;
+        border-top: 1px dashed var(--hair);
+      }
+      .stepnav .spacer {
+        flex: 1;
+      }
+      .btn.ghost {
+        background: none;
+        border-color: transparent;
+        color: var(--muted);
+      }
+      .btn.ghost:hover {
+        color: var(--ink);
+        border-color: var(--hair2);
+      }
+
       .sec {
         margin-bottom: 22px;
       }
@@ -1000,6 +1063,34 @@
       .train-popover .pop-actions .btn {
         flex: 1 1 auto;
       }
+      /* Cotas editables sobre el dibujo del tren */
+      .train-canvas .te-dim {
+        cursor: pointer;
+      }
+      .train-canvas .te-dim:hover {
+        opacity: 0.7;
+      }
+      .train-toolbar .te-field select {
+        width: 150px;
+      }
+      /* Editor inline de cota: input flotante sobre el SVG */
+      .te-dim-edit {
+        position: fixed;
+        z-index: 215;
+        width: 84px;
+        text-align: center;
+        font-family: var(--mono);
+        font-size: 12px;
+        padding: 3px 4px;
+        background: var(--surface);
+        color: var(--ink);
+        border: 1px solid var(--action);
+        border-radius: 4px;
+        box-shadow: 0 3px 12px rgba(26, 29, 33, 0.18);
+      }
+      .te-dim-edit[hidden] {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -1115,6 +1206,7 @@
           </div>
           <div class="panel-body">
             <div class="tabpanel" data-tab="veh" role="tabpanel">
+              <p class="stepintro" data-i18n="step.veh">Paso 1 de 4 · Define el tren</p>
               <div class="sec">
                 <h2 data-i18n="sec.vehicle">Vehículo</h2>
                 <div class="row">
@@ -1193,9 +1285,17 @@
                   importa desde <b>Archivo ▸ Importar vehículo</b>.
                 </div>
               </div>
+              <div class="stepnav">
+                <span class="spacer"></span>
+                <button class="btn primary" data-goto="track">
+                  <span data-i18n="nav.next">Siguiente</span>:
+                  <span data-i18n="tab.track">Trazado</span> ▸
+                </button>
+              </div>
             </div>
 
             <div class="tabpanel" data-tab="track" role="tabpanel">
+              <p class="stepintro" data-i18n="step.track">Paso 2 de 4 · Carga la vía</p>
               <div class="sec">
                 <h2 data-i18n="sec.track">Trazado</h2>
                 <div class="row">
@@ -1246,9 +1346,22 @@
                   el sentido de marcha es el de dibujo salvo que se invierta.
                 </div>
               </div>
+              <div class="stepnav">
+                <button class="btn ghost" data-goto="veh">
+                  ◂ <span data-i18n="tab.veh">Vehículo</span>
+                </button>
+                <span class="spacer"></span>
+                <button class="btn primary" data-goto="reglas">
+                  <span data-i18n="nav.next">Siguiente</span>:
+                  <span data-i18n="tab.reglas">Reglas</span> ▸
+                </button>
+              </div>
             </div>
 
             <div class="tabpanel" data-tab="reglas" role="tabpanel">
+              <p class="stepintro" data-i18n="step.reglas">
+                Paso 3 de 4 · Ajusta las reglas de cálculo
+              </p>
               <div class="sec">
                 <h2 data-i18n="sec.kin">Envolvente cinemática</h2>
                 <div class="row">
@@ -1438,9 +1551,22 @@
                   </button>
                 </div>
               </div>
+              <div class="stepnav">
+                <button class="btn ghost" data-goto="track">
+                  ◂ <span data-i18n="tab.track">Trazado</span>
+                </button>
+                <span class="spacer"></span>
+                <button class="btn primary" data-goto="obs">
+                  <span data-i18n="nav.next">Siguiente</span>:
+                  <span data-i18n="tab.obs">Obstáculos</span> ▸
+                </button>
+              </div>
             </div>
 
             <div class="tabpanel" data-tab="obs" role="tabpanel">
+              <p class="stepintro" data-i18n="step.obs">
+                Paso 4 de 4 · Comprueba obstáculos y calcula
+              </p>
               <div class="sec">
                 <h2 data-i18n="sec.obs">Obstáculos · clash check</h2>
                 <button class="btn" id="btnObs" style="width: 100%" data-i18n="btn.importObs">
@@ -1476,6 +1602,15 @@
                   secante local (empate) · módulos suspendidos como cuerda rígida entre
                   articulaciones · sin balanceo, peralte, juegos ni tolerancias (Fase 3).
                 </div>
+              </div>
+              <div class="stepnav">
+                <button class="btn ghost" data-goto="reglas">
+                  ◂ <span data-i18n="tab.reglas">Reglas</span>
+                </button>
+                <span class="spacer"></span>
+                <button class="btn primary" id="btnRunFromObs" data-i18n="calc.run">
+                  Calcular huella
+                </button>
               </div>
             </div>
           </div>
@@ -1652,6 +1787,12 @@
         <h2 data-i18n="te.title">Editor del tren</h2>
         <div class="train-head-actions">
           <button class="btn small" id="btnAddCaja" data-i18n="te.addCar">+ Añadir caja</button>
+          <button class="btn small" id="btnSaveVehTrain" data-i18n="te.saveVeh">
+            Guardar vehículo
+          </button>
+          <button class="btn small primary" id="btnTrainToTrack" data-i18n="te.toTrack">
+            Cargar la vía
+          </button>
           <button
             class="btn small"
             id="btnCloseTrain"
@@ -1664,6 +1805,10 @@
         </div>
       </div>
       <div class="train-toolbar">
+        <div class="te-field">
+          <label for="tePreset" data-i18n="te.preset">Preset de vehículo</label>
+          <select id="tePreset"></select>
+        </div>
         <div class="te-field">
           <label for="teWheelbase" data-i18n="te.wheelbase">Empate global</label>
           <input id="teWheelbase" type="number" step="0.05" min="0.5" /><span class="u">m</span>

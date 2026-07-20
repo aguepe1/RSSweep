@@ -82,6 +82,22 @@ test.describe("E3-1 · layout §4 (menú + pestañas + barra de estado)", () => 
     await expect(page.locator("#btnRun")).toBeVisible();
   });
 
+  test("la narrativa secuencial numera los pasos y «Siguiente» avanza de pestaña", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    // el paso 1 (Vehículo) muestra su intro numerada
+    await expect(page.locator('.tabpanel[data-tab="veh"] .stepintro')).toContainText("Paso 1");
+    await expect(page.locator("#trackPreset")).toBeHidden();
+    // «Siguiente: Trazado» avanza al paso 2 sin tocar la pestaña directamente
+    await page.locator('.tabpanel[data-tab="veh"] .stepnav [data-goto="track"]').click();
+    await expect(page.locator("#trackPreset")).toBeVisible();
+    await expect(page.locator('.tabpanel[data-tab="track"] .stepintro')).toContainText("Paso 2");
+    // «◂ Vehículo» del paso 2 vuelve al paso 1
+    await page.locator('.tabpanel[data-tab="track"] .stepnav [data-goto="veh"]').click();
+    await expect(page.locator("#modules")).toBeVisible();
+  });
+
   test("la barra de menú abre desplegables y actúa sobre botones existentes", async ({ page }) => {
     await page.goto("/");
     // el menú Informes despliega opciones que delegan en los botones de export
