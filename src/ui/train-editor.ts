@@ -6,18 +6,20 @@
 // Es SOLO UI sobre `state.vehicle` (los mismos campos que editan las tablas): muta
 // el modelo en sitio y sincroniza llamando a `renderVehiclePanel()` (que cascada el
 // mini-esquema + rótulas) y a `run()` (re-barrido). No toca el motor ni los dorados.
-import { chamferContour, rectContour } from "../engine/index";
+import { chamferContour, rectContour, VEHICLE_PRESETS } from "../engine/index";
 import type { Vec2, VehicleModule } from "../types";
-import { $, fmt } from "./dom";
+import { $, clone, fmt } from "./dom";
 import { state } from "./state";
 import { C } from "./theme";
 import { t } from "./i18n";
 import { run } from "./controller";
+import { activateTab } from "./layout";
 import { addDefaultModule, applyModuleTypeDefaults, renderVehiclePanel } from "./panels";
 
 let editorEl: HTMLElement;
 let canvasEl: HTMLElement;
 let popEl: HTMLElement;
+let dimEditEl: HTMLInputElement | null = null;
 let opened = false;
 
 // geometría del último render (para mapear puntero→mundo durante el arrastre)
@@ -58,6 +60,39 @@ export function initTrainEditor(): void {
     commit();
   });
 
+  // Guardar el vehículo entero (descarga JSON) desde la propia vista del tren:
+  // delega en el botón «Guardar vehículo» del panel para no duplicar la ruta.
+  $("btnSaveVehTrain").addEventListener("click", () => $("btnSaveVeh").click());
+
+  // Narrativa secuencial: al terminar el tren, saltar a «cargar la vía».
+  $("btnTrainToTrack").addEventListener("click", () => {
+    closeTrainEditor();
+    activateTab("track");
+    document.querySelector(".panel-body")?.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  // Preset de vehículo elegible desde el editor (todo el tren es modificable aquí):
+  // reutiliza el mismo camino que el select del panel para mantener una sola fuente.
+  const tePreset = $<HTMLSelectElement>("tePreset");
+  VEHICLE_PRESETS.forEach((p, i) => tePreset.add(new Option(p.name, String(i))));
+  tePreset.addEventListener("change", (e) => {
+    const i = +(e.target as HTMLSelectElement).value;
+    state.vehicle = clone(VEHICLE_PRESETS[i].vehicle);
+    // mantener sincronizado el select del panel de entrada
+    const panelSel = $<HTMLSelectElement>("vehPreset");
+    if (panelSel) panelSel.value = String(i);
+    hidePopover();
+    hideDimEditor();
+    commit();
+  });
+
+  // Input flotante para editar cotas directamente sobre el dibujo.
+  dimEditEl = document.createElement("input");
+  dimEditEl.type = "number";
+  dimEditEl.className = "te-dim-edit";
+  dimEditEl.hidden = true;
+  document.body.appendChild(dimEditEl);
+
   // barra: empate global y espejos
   $("teWheelbase").addEventListener("change", (e) => {
     state.vehicle.wheelbase = parseFloat((e.target as HTMLInputElement).value) || 1.8;
@@ -85,14 +120,15 @@ export function initTrainEditor(): void {
     });
   }
 
-  // Escape cierra (captura, para ganar al cierre de menús)
+  // Escape cierra (captura, para ganar al cierre de menús). Si hay un editor de
+  // cota abierto, Escape lo cancela primero (no cierra todo el editor del tren).
   document.addEventListener(
     "keydown",
     (e) => {
-      if (opened && e.key === "Escape") {
-        e.stopPropagation();
-        closeTrainEditor();
-      }
+      if (!opened || e.key !== "Escape") return;
+      e.stopPropagation();
+      if (dimFinish) hideDimEditor();
+      else closeTrainEditor();
     },
     true,
   );
@@ -116,6 +152,7 @@ export function openTrainEditor(): void {
 export function closeTrainEditor(): void {
   opened = false;
   hidePopover();
+  hideDimEditor();
   editorEl.hidden = true;
   $<HTMLButtonElement>("btnEditTrain").focus();
 }
@@ -127,6 +164,10 @@ function syncToolbar(): void {
   $<HTMLInputElement>("teMirEnabled").checked = !!(v.mirror && v.mirror.enabled);
   $<HTMLInputElement>("teMirProt").value = String(v.mirror ? v.mirror.protrusion : 0.25);
   $<HTMLInputElement>("teMirOff").value = String(v.mirror ? v.mirror.offsetFromFront : 0.55);
+  // refleja el preset activo del panel (−1 = vehículo a medida)
+  const panelSel = document.getElementById("vehPreset") as HTMLSelectElement | null;
+  const teSel = document.getElementById("tePreset") as HTMLSelectElement | null;
+  if (panelSel && teSel) teSel.selectedIndex = panelSel.selectedIndex;
 }
 
 /** Muta hecho → refresca tablas, mini-esquema, rótulas y re-barre; redibuja el
@@ -141,6 +182,30 @@ function commit(): void {
   document.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
+// ----------------------------------------------------------------- cotas (SVG)
+/** Etiqueta de cota clicable: un rect transparente (zona de clic ancha) + el texto.
+ *  `dim`/`idx` identifican qué parámetro edita al pulsarla. */
+function dimLabel(cxp: number, cyp: number, text: string, dim: string, idx: number): string {
+  const w = Math.max(30, text.length * 6.6 + 10);
+  return (
+    `<g class="te-dim" data-dim="${dim}" data-idx="${idx}" role="button" aria-label="${t("te.dim.edit")}: ${text}">` +
+    `<rect x="${(cxp - w / 2).toFixed(1)}" y="${(cyp - 8).toFixed(1)}" width="${w.toFixed(1)}" height="16" rx="2" fill="transparent"/>` +
+    `<text x="${cxp.toFixed(1)}" y="${(cyp + 3.5).toFixed(1)}" text-anchor="middle" font-size="10" font-family="'IBM Plex Mono',monospace" fill="${C.secondary}">${text}</text>` +
+    `</g>`
+  );
+}
+
+/** Línea de cota horizontal con topes en los extremos (decorativa, sin eventos). */
+function dimLine(xa: number, xb: number, y: number, color: string): string {
+  const tick = (x: number): string =>
+    `<line x1="${x.toFixed(1)}" y1="${(y - 4).toFixed(1)}" x2="${x.toFixed(1)}" y2="${(y + 4).toFixed(1)}" stroke="${color}" stroke-width="1" pointer-events="none"/>`;
+  return (
+    `<line x1="${xa.toFixed(1)}" y1="${y.toFixed(1)}" x2="${xb.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${color}" stroke-width="1" pointer-events="none"/>` +
+    tick(xa) +
+    tick(xb)
+  );
+}
+
 // -------------------------------------------------------------- render del SVG
 function renderEditor(): void {
   if (!opened) return;
@@ -153,8 +218,8 @@ function renderEditor(): void {
 
   const avail = Math.max(360, (canvasEl.clientWidth || 900) - 48);
   const padX = 44;
-  const padTop = 40;
-  const padBot = 84;
+  const padTop = 54; // hueco superior para cotas de pivote/hueco y ancho
+  const padBot = 100; // hueco inferior para cotas de longitud + longitud total
   const sc = avail / spanX;
   const drawH = maxW * sc;
   const viewW = Math.round(avail + 2 * padX);
@@ -163,7 +228,16 @@ function renderEditor(): void {
   const X = (xg: number): number => padX + xg * sc;
   const Y = (yl: number): number => cy - yl * sc;
 
+  // color de fondo real del lienzo (para «romper» las líneas de cota bajo el texto)
+  const paper = getComputedStyle(canvasEl).backgroundColor || "#fff";
+  const carTop = cy - drawH / 2;
+  const carBot = cy + drawH / 2;
+  const yPiv = carTop - 34; // fila de cotas de pivote / hueco (arriba)
+  const yW = carTop - 14; // fila de cotas de ancho (justo sobre la caja)
+  const yLen = carBot + 30; // cotas de longitud por módulo (abajo)
+
   const parts: string[] = [];
+  const dims: string[] = []; // cotas: se pintan al final (encima → capturan el clic)
   const x0arr: number[] = [];
   const empSegs: { a: number; b: number }[] = [];
   let x0 = 0;
@@ -180,6 +254,15 @@ function renderEditor(): void {
     parts.push(
       `<text x="${X(x0 + m.length / 2).toFixed(1)}" y="${(cy + 4).toFixed(1)}" text-anchor="middle" font-size="12" fill="${C.secondary}" pointer-events="none">${m.id || "M" + (i + 1)}</text>`,
     );
+
+    // cota de longitud (línea de cota con topes + valor editable, debajo de la caja)
+    dims.push(dimLine(X(x0), X(x0 + m.length), yLen, C.hairline));
+    dims.push(
+      `<rect x="${(X(x0 + m.length / 2) - 24).toFixed(1)}" y="${(yLen - 8).toFixed(1)}" width="48" height="16" fill="${paper}" pointer-events="none"/>`,
+    );
+    dims.push(dimLabel(X(x0 + m.length / 2), yLen, `${fmt(m.length, 2)} m`, "length", i));
+    // cota de ancho (justo sobre la caja, con ↕ para leerse como anchura)
+    dims.push(dimLabel(X(x0 + m.length / 2), yW, `↕ ${fmt(m.width, 2)} m`, "width", i));
 
     // pivotes: biBogie → dos; bogie → uno
     const pivs: Array<{ pv: number; tag: "single" | "front" | "rear" }> =
@@ -214,6 +297,13 @@ function renderEditor(): void {
       parts.push(
         `<rect class="te-bogie te-hit" data-mod="${i}" data-piv="${tag}" x="${xa.toFixed(1)}" y="${Y(bw / 2).toFixed(1)}" width="${(xb - xa).toFixed(1)}" height="${(bw * sc).toFixed(1)}" fill="transparent"/>`,
       );
+      // cota del pivote: distancia desde el testero delantero (editable además del arrastre)
+      const dimName = tag === "single" ? "pivot" : tag === "front" ? "pivotFront" : "pivotRear";
+      dims.push(
+        `<line x1="${X(x0).toFixed(1)}" y1="${yPiv.toFixed(1)}" x2="${X(pivX).toFixed(1)}" y2="${yPiv.toFixed(1)}" stroke="${C.hairline}" stroke-width="1" pointer-events="none"/>`,
+        `<line x1="${X(pivX).toFixed(1)}" y1="${(yPiv - 4).toFixed(1)}" x2="${X(pivX).toFixed(1)}" y2="${(cy - 4).toFixed(1)}" stroke="${C.hairline}" stroke-width="0.8" stroke-dasharray="2 2" pointer-events="none"/>`,
+      );
+      dims.push(dimLabel(X(pivX), yPiv, `↦ ${fmt(pv, 2)} m`, dimName, i));
     }
 
     // fuelle + rótula hacia el siguiente módulo (clicable → ventana de fuelle)
@@ -235,15 +325,21 @@ function renderEditor(): void {
       parts.push(
         `<rect class="te-fuelle te-hit" data-joint="${i}" x="${(jx - hitW / 2).toFixed(1)}" y="${(cy - drawH / 2).toFixed(1)}" width="${hitW.toFixed(1)}" height="${drawH.toFixed(1)}" fill="transparent"/>`,
       );
+      // cota del hueco entre testeros (editable)
+      dims.push(dimLabel(jx, yLen, `⟷ ${fmt(g, 2)} m`, "gap", i));
     }
     x0 += m.length + gap(i);
   });
 
-  // cota de longitud total
-  const yDim = viewH - 26;
+  // cotas por módulo/rótula (encima de las cajas → capturan el clic antes que ellas)
+  parts.push(...dims);
+
+  // cota de longitud total (derivada; solo lectura)
+  const yDim = viewH - 20;
   parts.push(
-    `<line x1="${X(0).toFixed(1)}" y1="${yDim}" x2="${X(spanX).toFixed(1)}" y2="${yDim}" stroke="${C.secondary}" stroke-width="1"/>`,
-    `<text x="${X(spanX / 2).toFixed(1)}" y="${yDim + 16}" text-anchor="middle" font-size="11" font-family="'IBM Plex Mono',monospace" fill="${C.ink}">${fmt(spanX, 2)} m</text>`,
+    dimLine(X(0), X(spanX), yDim, C.secondary),
+    `<rect x="${(X(spanX / 2) - 70).toFixed(1)}" y="${(yDim - 8).toFixed(1)}" width="140" height="16" fill="${paper}" pointer-events="none"/>`,
+    `<text x="${X(spanX / 2).toFixed(1)}" y="${(yDim + 4).toFixed(1)}" text-anchor="middle" font-size="11" font-family="'IBM Plex Mono',monospace" fill="${C.ink}">${t("te.dim.total")}: ${fmt(spanX, 2)} m</text>`,
   );
 
   layout = { sc, padX, viewW, x0: x0arr };
@@ -271,11 +367,139 @@ function attachSvgEvents(): void {
     window.addEventListener("pointerup", onDragUp);
   });
   svgEl.addEventListener("click", (e) => {
+    // las cotas se pintan encima y ganan el clic → editor inline de la cota
+    const dim = (e.target as Element).closest<SVGElement>(".te-dim");
+    if (dim) {
+      e.stopPropagation();
+      return openDimEditor(dim.dataset.dim || "", +(dim.dataset.idx || "0"), e.clientX, e.clientY);
+    }
     const joint = (e.target as Element).closest<SVGElement>("[data-joint]");
     if (joint) return openFuellePopover(+(joint.dataset.joint || "0"), e.clientX, e.clientY);
     const car = (e.target as Element).closest<SVGElement>("[data-car]");
     if (car) return openCarPopover(+(car.dataset.car || "0"), e.clientX, e.clientY);
   });
+}
+
+// ------------------------------------------------------ editor inline de cotas
+interface DimSpec {
+  get: () => number;
+  set: (x: number) => void;
+  step: string;
+}
+
+/** Traduce (tipo de cota, índice) → getter/setter sobre `state.vehicle`, con los
+ *  mismos clamps que el arrastre y las tablas. Devuelve null si no aplica. */
+function dimSpec(dim: string, idx: number): DimSpec | null {
+  const v = state.vehicle;
+  const mods = v.modules;
+  const m = mods[idx];
+  const rechamfer = (): void => {
+    const cham = chamferOfLocal(m);
+    if (cham) m.contour = chamferContour(m, cham.d, cham.w, idx === 0, idx === mods.length - 1);
+  };
+  switch (dim) {
+    case "length":
+      return {
+        get: () => m.length,
+        set: (x) => {
+          m.length = Math.max(0.5, x);
+          rechamfer();
+        },
+        step: "0.05",
+      };
+    case "width":
+      return {
+        get: () => m.width,
+        set: (x) => {
+          m.width = Math.max(1, x);
+          rechamfer();
+        },
+        step: "0.01",
+      };
+    case "gap": {
+      const j = v.joints[idx];
+      if (!j) return null;
+      return { get: () => j.gap, set: (x) => (j.gap = Math.max(0, x)), step: "0.05" };
+    }
+    case "pivot":
+      return {
+        get: () => m.pivotFromFront ?? m.length / 2,
+        set: (x) => (m.pivotFromFront = r3(Math.max(0, Math.min(m.length, x)))),
+        step: "0.05",
+      };
+    case "pivotFront":
+      return {
+        get: () => m.pivotFrontFromFront ?? m.length / 3,
+        set: (x) =>
+          (m.pivotFrontFromFront = r3(
+            Math.max(0, Math.min((m.pivotRearFromFront ?? m.length) - 0.5, x)),
+          )),
+        step: "0.05",
+      };
+    case "pivotRear":
+      return {
+        get: () => m.pivotRearFromFront ?? (2 * m.length) / 3,
+        set: (x) =>
+          (m.pivotRearFromFront = r3(
+            Math.min(m.length, Math.max((m.pivotFrontFromFront ?? 0) + 0.5, x)),
+          )),
+        step: "0.05",
+      };
+    default:
+      return null;
+  }
+}
+
+let dimFinish: ((apply: boolean) => void) | null = null;
+
+/** Oculta el editor inline de cota descartando cualquier edición en curso. */
+function hideDimEditor(): void {
+  if (dimFinish) dimFinish(false);
+}
+
+/** Abre un input flotante sobre la cota pulsada; Enter/blur confirma, Esc cancela. */
+function openDimEditor(dim: string, idx: number, clientX: number, clientY: number): void {
+  const spec = dimSpec(dim, idx);
+  const input = dimEditEl;
+  if (!spec || !input) return;
+  hidePopover();
+  dimFinish?.(false); // cierra cualquier editor previo
+  input.hidden = false;
+  input.step = spec.step;
+  input.min = "0";
+  input.value = String(r3(spec.get()));
+  input.style.left = Math.max(8, Math.min(clientX - 42, window.innerWidth - 92)) + "px";
+  input.style.top = Math.max(8, clientY - 12) + "px";
+  input.focus();
+  input.select();
+
+  const finish = (apply: boolean): void => {
+    input.removeEventListener("keydown", onKey);
+    input.removeEventListener("blur", onBlur);
+    input.hidden = true;
+    dimFinish = null;
+    if (apply) {
+      const val = parseFloat(input.value);
+      if (!Number.isNaN(val)) {
+        spec.set(val);
+        commit();
+      }
+    }
+  };
+  const onKey = (e: KeyboardEvent): void => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      finish(true);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      finish(false);
+    }
+  };
+  const onBlur = (): void => finish(true);
+  input.addEventListener("keydown", onKey);
+  input.addEventListener("blur", onBlur);
+  dimFinish = finish;
 }
 
 function onDragMove(e: PointerEvent): void {
@@ -308,6 +532,16 @@ function onDragUp(): void {
 // ----------------------------------------------------------------- ventanas
 function hidePopover(): void {
   if (popEl) popEl.hidden = true;
+}
+
+/** Cablea el botón «Guardar cambios» de una ventana: confirma (re-barre) y cierra.
+ *  Las ediciones ya se aplican en vivo al `change` de cada campo; este botón da un
+ *  cierre explícito por elemento, junto al de «aplicar a todos». */
+function wireSaveButton(): void {
+  popEl.querySelector<HTMLButtonElement>('[data-a="save"]')?.addEventListener("click", () => {
+    commit();
+    hidePopover();
+  });
 }
 
 function positionPopover(x: number, y: number): void {
@@ -362,6 +596,7 @@ function openBogiePopover(idx: number, x: number, y: number): void {
     ) +
     typeRow +
     pivRows +
+    `<div class="pop-actions"><button class="btn small primary" data-a="save">${t("te.save")}</button></div>` +
     `<div class="pop-actions"><button class="btn small" data-a="applyBogies">${t("te.bogie.applyAll")}</button></div>`;
 
   popEl.querySelectorAll<HTMLInputElement | HTMLSelectElement>("input,select").forEach((el) => {
@@ -378,6 +613,7 @@ function openBogiePopover(idx: number, x: number, y: number): void {
       // y desenganchar el botón «aplicar a todos» a mitad de un clic).
     });
   });
+  wireSaveButton();
   popEl
     .querySelector<HTMLButtonElement>('[data-a="applyBogies"]')!
     .addEventListener("click", () => {
@@ -417,6 +653,7 @@ function openFuellePopover(idx: number, x: number, y: number): void {
     field(t("te.joint.fuelle"), numInput("fuelleWidth", j.fuelleWidth, "0.05", "0.5")) +
     field(t("te.joint.limit"), numInput("maxAngleDeg", j.maxAngleDeg, "1", "0")) +
     stiffRow +
+    `<div class="pop-actions"><button class="btn small primary" data-a="save">${t("te.save")}</button></div>` +
     `<div class="pop-actions"><button class="btn small" data-a="applyJoints">${t("te.joint.applyAll")}</button></div>`;
 
   popEl.querySelectorAll<HTMLInputElement | HTMLSelectElement>("input,select").forEach((el) => {
@@ -429,6 +666,7 @@ function openFuellePopover(idx: number, x: number, y: number): void {
       if (f === "type") openFuellePopover(idx, x, y);
     });
   });
+  wireSaveButton();
   popEl
     .querySelector<HTMLButtonElement>('[data-a="applyJoints"]')!
     .addEventListener("click", () => {
@@ -475,7 +713,8 @@ function openCarPopover(idx: number, x: number, y: number): void {
     field(t("te.car.length"), numInput("length", m.length, "0.05", "0.5")) +
     field(t("te.car.width"), numInput("width", m.width, "0.01", "1")) +
     cabRow +
-    `<div class="pop-actions">
+    `<div class="pop-actions"><button class="btn small primary" data-a="save">${t("te.save")}</button></div>
+    <div class="pop-actions">
       <button class="btn small" data-a="dup">${t("te.car.dup")}</button>
       <button class="btn small" data-a="del">${t("te.car.del")}</button>
     </div>
@@ -515,6 +754,7 @@ function openCarPopover(idx: number, x: number, y: number): void {
       if (f === "cabShape") openCarPopover(idx, x, y);
     });
   });
+  wireSaveButton();
   popEl.querySelector<HTMLButtonElement>('[data-a="dup"]')!.addEventListener("click", () => {
     v.modules.splice(idx + 1, 0, JSON.parse(JSON.stringify(m)));
     commit();

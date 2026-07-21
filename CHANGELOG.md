@@ -8,6 +8,14 @@ Todas las versiones notables de BARRIDO. El formato sigue
 
 ### Añadido
 
+- **UI de narrativa secuencial**: las pestañas del panel de entrada se numeran (1 Tren →
+  2 Vía → 3 Reglas → 4 Obstáculos) con intro por paso y navegación «Siguiente/Anterior»,
+  guiando el flujo «primero defino el tren, luego cargo la vía». El editor del tren gana
+  **cotas editables sobre el dibujo** (longitud y ancho por módulo, hueco de rótula,
+  pivote) que abren un editor inline al pulsarlas, un botón **«Guardar cambios»** por
+  elemento junto al de «aplicar a todos», selector de preset de vehículo y accesos
+  «Guardar vehículo» / «Cargar la vía». Solo UI sobre `state.vehicle`: no toca el motor
+  ni los valores dorados. `e2e/train-editor.spec.ts` y `e2e/redesign.spec.ts` lo cubren.
 - `docs/ROADMAP.md`: auditoría y plan de trabajo priorizado (Fases 0–3) hacia v1.0.
 - **Guardas de regresión de `ENGINE_NOTES §6`** (`tests/s6_regression.test.ts`): la energía
   del solver de equilibrio decrece estrictamente (`energyInitial`/`energyFinal` en la
