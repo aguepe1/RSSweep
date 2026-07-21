@@ -8,6 +8,20 @@ Todas las versiones notables de BARRIDO. El formato sigue
 
 ### Añadido
 
+- **Informe de gálibo entregable (E4-1)**: nueva vista «Informes ▸ Ver informe de
+  gálibo…» (o Ctrl+P) que genera un documento HTML paginado imprimible a PDF con
+  `@media print` + `@page` A4 y cabecera/pie repetidos. Secciones: portada con
+  **cajetín** (proyecto, vehículo, fecha, versión y **hash de parámetros**
+  determinista para reproducibilidad) y KPIs; datos de entrada (esquema a escala,
+  tablas de módulos/rótulas, trazado con radio mínimo, reglas cinemáticas);
+  hipótesis y limitaciones del modelo (texto fijo de `ENGINE_NOTES §1/§5`);
+  resultados (**planta general vectorial SVG**, diagrama de semianchos por PK y
+  tabla por PK con geo/kin/UIC); registro de clash; y anexo UIC 505-1. **Legible en
+  B/N**: cada serie lleva además del color un patrón de trazo distinto (huella
+  continua, cinemática discontinua, eje trazo-punto) con leyenda. Es solo
+  presentación sobre `state` (reutiliza `report-data`): no toca el motor ni los
+  valores dorados. i18n ES/FR/EN. `e2e/report.spec.ts` lo cubre.
+
 - **UI de narrativa secuencial**: las pestañas del panel de entrada se numeran (1 Tren →
   2 Vía → 3 Reglas → 4 Obstáculos) con intro por paso y navegación «Siguiente/Anterior»,
   guiando el flujo «primero defino el tren, luego cargo la vía». El editor del tren gana
