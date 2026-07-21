@@ -336,6 +336,9 @@ export function solveChainEq(
   let cur = energy(yaws);
   if (!cur) return null;
   lastChain = cur.ch;
+  // Energía de la configuración inicial (caja libre según secante / warm start),
+  // para verificar la moraleja de ENGINE_NOTES §6: el equilibrio SIEMPRE la reduce.
+  const energyInitial = cur.E;
   const h = 3e-4;
   const evalAt = (dy: Record<number, number>): number | null => {
     const y2 = yaws.map((y, i) => y + (dy[i] || 0));
@@ -416,6 +419,8 @@ export function solveChainEq(
     if (!accepted) break;
   }
   cur.ch.yaws = yaws;
+  cur.ch.energyInitial = energyInitial;
+  cur.ch.energyFinal = cur.E;
   return cur.ch;
 }
 

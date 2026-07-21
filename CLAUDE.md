@@ -5,34 +5,40 @@ rodante tranviario. Rol de la herramienta: **contra-cálculo de verificación** 
 ingeniero de integración/AMO — no compite con AutoTURN en producción de diseño, compite
 en transparencia, auditabilidad y automatización.
 
-## Estado actual (v0.4, "Fase 4")
+## Estado actual (v0.4)
 
-Un único fichero HTML autocontenido (`dist/barrido_sweep_app.html`, ~92 KB) generado
-por `python3 tools/build.py` a partir de:
+Aplicación **TypeScript + Vite** que se compila a **un único HTML autocontenido**
+(`dist/index.html`, ~0,5 MB) sin peticiones de red en runtime (fuentes empaquetadas):
+requisito duro, se usa en entornos corporativos sin poder instalar nada.
 
-- `src/engine.js` — motor puro (sin DOM). Trazado por curvatura o puntos, parser DXF
-  (LINE/ARC/LWPOLYLINE con bulge/POLYLINE), cadena cinemática multicuerpo N módulos,
-  solver de equilibrio Newton multivariable para rótulas bisectriz, envolvente
-  geométrica por barrido + envolvente cinemática por reglas cuasi-estáticas, clash
-  check contra obstáculos, peralte por tabla CSV, comparación UIC 505-1, export DXF R12.
-- `src/ui.js` — toda la interfaz (vanilla JS, canvas 2D).
-- `src/app_shell.html` — layout + CSS + puntos de inyección `/*__ENGINE__*/`, `/*__UI__*/`.
+- `src/engine/` — motor puro en TypeScript (sin DOM), tipos compartidos en `src/types.ts`.
+  Trazado (`track`), parser DXF y export R12 (`dxf`), import LandXML (`landxml`), cadena
+  cinemática multicuerpo + solver de equilibrio Newton (`chain`), barrido y envolvente
+  (`sweep`, `envelope`), reglas cuasi-estáticas de peralte (`kinematic`), clash check
+  (`clash`), comparación UIC 505-1 (`uic`), agregación para informes (`report-data`),
+  presets (`presets`). Barrel público en `src/engine/index.ts`. **Cero `any` en el motor.**
+- `src/ui/` — interfaz en TypeScript (canvas 2D + SVG); `src/main.ts` es el punto de
+  entrada. Web Worker para el barrido (`sweep-worker`), i18n ES/FR/EN (`i18n`), editor
+  interactivo del tren (`train-editor`), proyecto como fichero + autosave (`project`),
+  undo/redo (`history`, `undo-stack`), viewport CAD (`viewport`), etc.
+- `index.html` — shell de la app (entrada de Vite; el HTML final se genera con
+  `vite-plugin-singlefile`).
 
 El motor está **validado numéricamente** contra casos analíticos: los valores dorados
-están en `docs/ENGINE_NOTES.md` y son la red de seguridad de cualquier refactor.
-**Regla de oro: ningún cambio en `engine.js` se mergea sin que pasen los valores dorados.**
+están en `docs/ENGINE_NOTES.md §4` y son tests obligatorios (`tests/golden.test.ts`).
+**Regla de oro: ningún cambio en `src/engine/` se mergea sin que pasen los valores
+dorados.** El plan de trabajo priorizado hacia v1.0 está en `docs/ROADMAP.md`.
 
 ## Objetivo de la siguiente etapa
 
-Convertirlo en herramienta profesional: repo con build real, TypeScript, tests,
-rediseño completo de UI según `docs/DESIGN_SPEC.md`, reporting de calidad entregable
-(PDF/DXF/XLSX) según `docs/BACKLOG.md`. El artefacto de distribución debe seguir
-siendo **un único HTML sin servidor** (requisito duro: se usa en entornos corporativos
-sin poder instalar nada).
+Ver `docs/ROADMAP.md` (auditoría + fases). El gran hueco pendiente es el **reporting
+entregable** (informe PDF/print, XLSX, DXF pro — épica E4 del `docs/BACKLOG.md`); más
+robustez/confianza del motor, gobernanza de release/CI y pulido de accesibilidad/i18n.
+El artefacto de distribución debe seguir siendo **un único HTML sin servidor**.
 
 ## Convenciones
 
-- Idiomas: código e identificadores en inglés; UI en español (i18n ES/FR/EN en backlog E3).
+- Idiomas: código e identificadores en inglés; UI en español (i18n ES/FR/EN, `src/ui/i18n.ts`).
 - Unidades internas SIEMPRE en metros y radianes; conversión solo en la capa de UI.
 - Convenio geométrico: curvatura k>0 = curva a izquierda; normal de estación n = +90°
   respecto al rumbo; offsets laterales con signo (izq +, dcha −).
@@ -42,20 +48,25 @@ sin poder instalar nada).
   al usuario donde proceda (la honestidad sobre los límites del modelo es un feature).
 - Prohibido eliminar o suavizar los disclaimers de EN 15273 / UIC 505 en UI y reports.
 
-## Comandos (estado actual)
+## Comandos
 
 ```bash
-python3 tools/build.py                 # ensambla dist/barrido_sweep_app.html
-node -e "require('./src/engine.js')"   # smoke de sintaxis del motor
-python3 tools/gen_trazados.py          # regenera los DXF de demo (requiere ezdxf)
+npm install          # dependencias
+npm run dev          # servidor de desarrollo (Vite) en http://localhost:5173
+npm run build        # genera dist/index.html (HTML único, offline)
+npm run typecheck    # tsc --noEmit (estricto, cero any en el motor)
+npm run lint         # eslint + prettier --check
+npm test             # tests de motor (Vitest): valores dorados + propiedad + unidad
+npm run test:e2e     # flujos de UI (Playwright): importar DXF → calcular → exportar
 ```
-
-Tras completar E1 del backlog, estos comandos se sustituyen por `npm run dev|build|test`.
 
 ## Errores históricos que no deben repetirse (ver ENGINE_NOTES §6)
 
 1. Módulos suspendidos dibujados con rumbo invertido 180° (huella hacia el exterior).
+   Guarda: `tests/s6_regression.test.ts` (radio del punto medio hacia el interior).
 2. `r[i][i]` en la retro-sustitución de la eliminación gaussiana → todos los pasos de
    Newton NaN → el solver devolvía silenciosamente la solución sin optimizar.
    Moraleja: el solver de equilibrio necesita un test que verifique que la energía
-   FINAL es menor que la inicial, no solo que no explota.
+   FINAL es menor que la inicial, no solo que no explota. Guardas:
+   `tests/s6_regression.test.ts` (`energyFinal < energyInitial`) y `tests/unit.test.ts`
+   (`solveLin` singular → null).

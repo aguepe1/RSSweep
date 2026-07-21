@@ -1,4 +1,6 @@
-// BARRIDO — envolvente exacta por unión booleana + envolvente cinemática.
+// BARRIDO — envolvente por unión implícita por estaciones + envolvente cinemática.
+// (La geometría maestra es el remapeo por estaciones descrito en ENGINE_NOTES §3,
+//  NO una unión booleana de polígonos: polyclip-ts se evaluó y se descartó.)
 import type {
   JointResult,
   ProfileRow,
@@ -54,6 +56,13 @@ function solveSteps(
 }
 
 export function runSweep(track: Track, v: Vehicle, opts: SweepOpts = {}): SweepResult {
+  // Guarda de entrada degenerada: sin módulos no hay cuerpo que barrer y los máximos
+  // por reducción (`Math.max(...widths)`) darían −Infinity en vez de un error claro.
+  if (!v.modules || v.modules.length === 0)
+    return { error: "El vehiculo no tiene modulos: define al menos una caja." };
+  if (!track || track.n < 2 || !(track.length > 0))
+    return { error: "El trazado no tiene geometria suficiente (se requieren >=2 puntos)." };
+
   const step = opts.step || 0.25;
   const dst = opts.stationStep || 0.25;
   const edgeStep = opts.edgeStep || 0.3;
@@ -100,8 +109,9 @@ export function runSweep(track: Track, v: Vehicle, opts: SweepOpts = {}): SweepR
         "No se pudo resolver la cadena cinematica en ningun punto del trazado. Revisa radios minimos vs. geometria del vehiculo.",
     };
 
-  // Geometría maestra (E2-2): unión booleana de todas las huellas remapeada a las
-  // estaciones a lo largo de la normal (aísla ramas opuestas cercanas).
+  // Geometría maestra: unión IMPLÍCITA por estaciones (ENGINE_NOTES §3, no unión
+  // booleana de polígonos). Cada huella se remapea a las estaciones del eje a lo
+  // largo de la normal; la ventana longitudinal aísla ramas opuestas cercanas.
   const stations: Stations = { stS, stX, stY, stNx, stNy };
   const fEnv = remapStations(fwd.steps, stations, nSt, vlenTotal, dst, edgeStep);
   const left = fEnv.left;

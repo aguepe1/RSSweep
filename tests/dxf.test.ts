@@ -12,8 +12,14 @@ import { parseDXF, joinChains } from "../src/engine/dxf";
 /** Envuelve pares [código, valor] en un DXF mínimo con HEADER + ENTITIES. */
 function dxf(header: Array<[number, string | number]>, entities: Array<[number, string | number]>) {
   const all: Array<[number, string | number]> = [
-    [0, "SECTION"], [2, "HEADER"], ...header, [0, "ENDSEC"],
-    [0, "SECTION"], [2, "ENTITIES"], ...entities, [0, "ENDSEC"],
+    [0, "SECTION"],
+    [2, "HEADER"],
+    ...header,
+    [0, "ENDSEC"],
+    [0, "SECTION"],
+    [2, "ENTITIES"],
+    ...entities,
+    [0, "ENDSEC"],
     [0, "EOF"],
   ];
   return all.map(([c, v]) => `${c}\n${v}`).join("\n");
@@ -30,11 +36,22 @@ const splineLine = dxf(
     [72, 8],
     [73, 4],
     // 8 nudos clamped [0,0,0,0,1,1,1,1]
-    [40, 0], [40, 0], [40, 0], [40, 0], [40, 1], [40, 1], [40, 1], [40, 1],
-    [10, 0], [20, 0],
-    [10, 1], [20, 0],
-    [10, 2], [20, 0],
-    [10, 3], [20, 0],
+    [40, 0],
+    [40, 0],
+    [40, 0],
+    [40, 0],
+    [40, 1],
+    [40, 1],
+    [40, 1],
+    [40, 1],
+    [10, 0],
+    [20, 0],
+    [10, 1],
+    [20, 0],
+    [10, 2],
+    [20, 0],
+    [10, 3],
+    [20, 0],
   ],
 );
 
@@ -42,8 +59,18 @@ const splineLine = dxf(
 const twoLayers = dxf(
   [],
   [
-    [0, "LINE"], [8, "EJE"], [10, 0], [20, 0], [11, 50], [21, 0],
-    [0, "LINE"], [8, "RUIDO"], [10, 0], [20, 5], [11, 3], [21, 5],
+    [0, "LINE"],
+    [8, "EJE"],
+    [10, 0],
+    [20, 0],
+    [11, 50],
+    [21, 0],
+    [0, "LINE"],
+    [8, "RUIDO"],
+    [10, 0],
+    [20, 5],
+    [11, 3],
+    [21, 5],
   ],
 );
 
@@ -53,7 +80,14 @@ const mmLine = dxf(
     [9, "$INSUNITS"],
     [70, 4],
   ],
-  [[0, "LINE"], [8, "0"], [10, 0], [20, 0], [11, 1000], [21, 0]],
+  [
+    [0, "LINE"],
+    [8, "0"],
+    [10, 0],
+    [20, 0],
+    [11, 1000],
+    [21, 0],
+  ],
 );
 
 describe("§E2-3 DXF industrial", () => {
