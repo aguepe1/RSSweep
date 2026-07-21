@@ -39,6 +39,7 @@ export function trackFromSegments(segments: TrackSegment[], ds = 0.02): Track {
 
 /** Construcción desde lista de puntos (import DXF). */
 export function trackFromPoints(pts: Vec2[]): Track {
+  if (!pts || pts.length < 2) throw new Error("trackFromPoints requiere al menos 2 puntos de eje.");
   const xs = [pts[0][0]];
   const ys = [pts[0][1]];
   const ss = [0];
@@ -49,6 +50,9 @@ export function trackFromPoints(pts: Vec2[]): Track {
     xs.push(pts[i][0]);
     ys.push(pts[i][1]);
   }
+  // Tras eliminar duplicados pueden quedar <2 vértices distintos (todos coincidentes):
+  // sin longitud no hay eje que recorrer.
+  if (xs.length < 2) throw new Error("El eje se reduce a un punto: puntos de eje coincidentes.");
   return makeTrack(Float64Array.from(ss), Float64Array.from(xs), Float64Array.from(ys));
 }
 
@@ -67,6 +71,7 @@ export function makeTrack(
   extend = false,
 ): Track {
   const n = s.length;
+  if (n < 2) throw new Error("makeTrack requiere al menos 2 estaciones de eje.");
   const length = s[n - 1];
   function locate(sv: number): number {
     if (sv <= 0) return 0;
@@ -87,7 +92,10 @@ export function makeTrack(
     // de modo que la interpolación lineal extrapola con el rumbo del extremo.
     if (!extend) sv = Math.max(0, Math.min(length, sv));
     const i = locate(sv);
-    const t = (sv - s[i]) / (s[i + 1] - s[i]);
+    // Segmento de longitud no nula garantizado en ejes bien formados (dedup a 1e-9);
+    // el guardado evita NaN si se construye un Track con estaciones coincidentes.
+    const seg = s[i + 1] - s[i];
+    const t = seg > 1e-12 ? (sv - s[i]) / seg : 0;
     return [x[i] + t * (x[i + 1] - x[i]), y[i] + t * (y[i + 1] - y[i])];
   }
   function heading(sv: number): number {

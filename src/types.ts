@@ -175,6 +175,14 @@ export interface ChainSolution {
   jointPts: Vec2[];
   secants: number[];
   yaws?: number[];
+  /**
+   * Energía del funcional de equilibrio (bisectriz) en la configuración inicial y
+   * final del solver (`solveChainEq`). Diagnóstico/validación: la moraleja de
+   * ENGINE_NOTES §6 exige `energyFinal < energyInitial` cuando hay lazo libre.
+   * Solo lo rellena el camino de equilibrio; `undefined` en cadenas sin bisectriz.
+   */
+  energyInitial?: number;
+  energyFinal?: number;
 }
 
 export interface WarmStart {
