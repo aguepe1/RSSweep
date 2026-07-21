@@ -16,6 +16,34 @@ Todas las versiones notables de BARRIDO. El formato sigue
   elemento junto al de «aplicar a todos», selector de preset de vehículo y accesos
   «Guardar vehículo» / «Cargar la vía». Solo UI sobre `state.vehicle`: no toca el motor
   ni los valores dorados. `e2e/train-editor.spec.ts` y `e2e/redesign.spec.ts` lo cubren.
+- `docs/ROADMAP.md`: auditoría y plan de trabajo priorizado (Fases 0–3) hacia v1.0.
+- **Guardas de regresión de `ENGINE_NOTES §6`** (`tests/s6_regression.test.ts`): la energía
+  del solver de equilibrio decrece estrictamente (`energyInitial`/`energyFinal` en la
+  solución de cadena) y el punto medio del módulo suspendido queda hacia el interior de la
+  curva. Tests de robustez de entrada degenerada (`tests/robustness.test.ts`).
+- Fichero `LICENSE` (MIT) en la raíz.
+
+### Cambiado
+
+- El despliegue a GitHub Pages ahora se dispara **solo cuando CI pasa** (`workflow_run`
+  sobre `main`), de modo que un build en rojo no llega a producción. Runners a Node 22.
+- `CLAUDE.md` actualizado a la realidad TypeScript + Vite (se retiró la documentación del
+  flujo Python `build.py`/`engine.js`).
+- Comentarios del motor corregidos: `sweep.ts`/`envelope.ts` describían la envolvente como
+  «unión booleana / E2-2 exacta»; ahora reflejan la unión implícita por estaciones honesta
+  de `ENGINE_NOTES §3` (no cambia el cálculo; los valores dorados quedan intactos).
+
+### Corregido
+
+- Robustez ante entrada degenerada: `trackFromPoints`/`makeTrack` lanzan un error claro
+  con puntos vacíos/único/coincidentes en vez de romper o emitir NaN; un segmento de
+  longitud cero ya no divide por cero; `runSweep` devuelve `{error}` con vehículo sin
+  módulos o trazado de <2 puntos en vez de anchos `-Infinity`.
+
+## [0.4.0] — 2026-07-21
+
+### Añadido
+
 - Editor interactivo del tren (E4-B6): nuevo botón «Editar tren…» que abre un **overlay
   a pantalla completa** con el vehículo dibujado a escala en un SVG interactivo. Los
   **bogies se arrastran** a lo largo de su caja para fijar su posición (pivote; en coches

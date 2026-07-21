@@ -1,4 +1,6 @@
-// ENVOLVENTE (E2-2) — remapeo del contorno de barrido a estaciones.
+// ENVOLVENTE — remapeo del contorno de barrido a estaciones (unión IMPLÍCITA por
+// estaciones, ENGINE_NOTES §3; NO una unión booleana de polígonos — se evaluó
+// polyclip-ts y se descartó por coste/robustez).
 //
 // La envolvente es la UNIÓN de todas las huellas instantáneas (cuerpo + fuelle +
 // espejos). El perfil por PK se obtiene proyectando el contorno a la estación del
