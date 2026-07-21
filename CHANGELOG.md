@@ -8,6 +8,14 @@ Todas las versiones notables de BARRIDO. El formato sigue
 
 ### Añadido
 
+- **UI de narrativa secuencial**: las pestañas del panel de entrada se numeran (1 Tren →
+  2 Vía → 3 Reglas → 4 Obstáculos) con intro por paso y navegación «Siguiente/Anterior»,
+  guiando el flujo «primero defino el tren, luego cargo la vía». El editor del tren gana
+  **cotas editables sobre el dibujo** (longitud y ancho por módulo, hueco de rótula,
+  pivote) que abren un editor inline al pulsarlas, un botón **«Guardar cambios»** por
+  elemento junto al de «aplicar a todos», selector de preset de vehículo y accesos
+  «Guardar vehículo» / «Cargar la vía». Solo UI sobre `state.vehicle`: no toca el motor
+  ni los valores dorados. `e2e/train-editor.spec.ts` y `e2e/redesign.spec.ts` lo cubren.
 - Editor interactivo del tren (E4-B6): nuevo botón «Editar tren…» que abre un **overlay
   a pantalla completa** con el vehículo dibujado a escala en un SVG interactivo. Los
   **bogies se arrastran** a lo largo de su caja para fijar su posición (pivote; en coches
