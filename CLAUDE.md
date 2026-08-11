@@ -5,7 +5,7 @@ rodante tranviario. Rol de la herramienta: **contra-cálculo de verificación** 
 ingeniero de integración/AMO — no compite con AutoTURN en producción de diseño, compite
 en transparencia, auditabilidad y automatización.
 
-## Estado actual (v0.4)
+## Estado actual (v0.5)
 
 Aplicación **TypeScript + Vite** que se compila a **un único HTML autocontenido**
 (`dist/index.html`, ~0,5 MB) sin peticiones de red en runtime (fuentes empaquetadas):

@@ -115,7 +115,7 @@ test.describe("E3-1 · layout §4 (menú + pestañas + barra de estado)", () => 
   }) => {
     await page.goto("/");
     await expect(page.locator("#btnCsvOut")).toBeEnabled();
-    await expect(page.locator("#statusBarVersion")).toContainText("v0.4.0");
+    await expect(page.locator("#statusBarVersion")).toContainText("v0.5.0");
     await expect(page.locator("#statusBarSteps")).toContainText("pasos");
     await expect(page.locator("#statusBarTime")).toContainText("ms");
     await expect(page.locator("#statusBarHyp")).toContainText("geométrica");

@@ -15,8 +15,8 @@ test.describe("flujo: arranque → importar DXF → calcular → exportar", () =
     await expect(page.locator("#cartTable")).toContainText("Ancho total barrido");
     await expect(page.locator("#cartTable")).toContainText("3,244");
     // la versión aparece en la cabecera y en el cajetín (E1-4)
-    await expect(page.locator("#appSub")).toContainText("v0.4.0");
-    await expect(page.locator("#cartDate")).toContainText("v0.4.0");
+    await expect(page.locator("#appSub")).toContainText("v0.5.0");
+    await expect(page.locator("#cartDate")).toContainText("v0.5.0");
     // los botones de export se habilitan tras el cálculo
     await expect(page.locator("#btnCsvOut")).toBeEnabled();
     await expect(page.locator("#btnDxfOut")).toBeEnabled();
@@ -44,7 +44,7 @@ test.describe("flujo: arranque → importar DXF → calcular → exportar", () =
     for await (const c of stream) chunks.push(c as Buffer);
     const text = Buffer.concat(chunks).toString("utf8");
     // primera línea = metadato de versión; luego la cabecera de columnas
-    expect(text).toContain("BARRIDO 0.4.0");
+    expect(text).toContain("BARRIDO 0.5.0");
     expect(text).toContain("pk_m;offset_dcha_m;offset_izq_m;ancho_m");
   });
 
@@ -59,7 +59,7 @@ test.describe("flujo: arranque → importar DXF → calcular → exportar", () =
     const path = await download.path();
     const text = readFileSync(path, "utf8");
     expect(text.startsWith("999")).toBeTruthy();
-    expect(text).toContain("BARRIDO 0.4.0");
+    expect(text).toContain("BARRIDO 0.5.0");
   });
 });
 
