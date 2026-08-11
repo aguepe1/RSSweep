@@ -8,6 +8,22 @@ Todas las versiones notables de BARRIDO. El formato sigue
 
 ### Añadido
 
+- **DXF pro (E4-2)**: el export DXF (Informes ▸ Exportar huella DXF) pasa de una huella
+  suelta a un plano R12 completo: **capas normalizadas y documentadas** (EJE, HUELLA,
+  HUELLA_RELLENO, ENV_KIN, OBSTACULOS, INVASIONES, PK, COTAS con colores ACI), huella y
+  envolvente cinemática como **anillos cerrados**, **relleno tipo hatch** con entidades
+  SOLID (R12 no tiene HATCH), **etiquetas TEXT de PK** cada 10 m, **cotas de semiancho
+  máximo** interior/exterior con su PK, **obstáculos** y **marcadores de invasión** (círculo
+  con el margen en mm), y **cabecera 999** con app/versión/**hash de parámetros**. El hash
+  se comparte con el informe (`src/ui/param-hash.ts`). Validado en CI con **ezdxf**
+  (`tools/validate_dxf.py` + `tools/gen_sample_dxf.ts`): audita el fichero y comprueba las
+  capas. Cubierto por `tests/dxf_pro.test.ts` (contenido + round-trip con el parser propio).
+
+### Cambiado
+
+- CI: nuevo paso de **validación DXF con ezdxf** (Python) que genera un DXF de muestra con
+  el motor real y lo audita. Nueva dev-dependency `tsx` (MIT) para ejecutar el generador.
+
 - **Export XLSX (E4-3)**: nueva opción «Informes ▸ Exportar libro XLSX» que genera un
   libro Excel con hojas **Parámetros / Perfil / Rótulas / Clash / UIC** (cabecera en
   negrita y congelada, anchos de columna, relleno rojo en estados excedidos/invasiones).

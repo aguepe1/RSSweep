@@ -38,6 +38,17 @@ jobs:
       - name: E2E flow tests (Playwright)
         run: npm run test:e2e
 
+      - name: Set up Python (validación DXF)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate pro DXF with ezdxf (E4-2)
+        run: |
+          python -m pip install --quiet ezdxf
+          npm run gen:dxf-sample -- /tmp/barrido-sample.dxf
+          python tools/validate_dxf.py /tmp/barrido-sample.dxf
+
       - name: Upload single-file artifact
         if: always()
         uses: actions/upload-artifact@v4

@@ -13,6 +13,7 @@ import { C } from "./theme";
 import { APP_NAME, VERSION } from "../version";
 import { t, numLocale } from "./i18n";
 import { pkFmt } from "./pk";
+import { paramHash } from "./param-hash";
 
 let viewEl: HTMLElement;
 let bodyEl: HTMLElement;
@@ -52,26 +53,6 @@ function closeReport(): void {
   viewEl.hidden = true;
 }
 
-// ------------------------------------------------------------- hash de parámetros
-/** FNV-1a 32-bit → 8 hex. Determinista sobre el JSON canónico de las entradas: dos
- *  informes con el mismo hash provienen de los mismos parámetros (reproducibilidad). */
-function paramHash(): string {
-  const canon = {
-    v: state.vehicle,
-    kin: state.kin.enabled ? state.kin : null,
-    uic: state.uic.enabled ? state.uic : null,
-    track: { name: state.trackName, len: round(state.track?.length ?? 0, 3), gauge: state.gauge },
-  };
-  const str = JSON.stringify(canon);
-  let h = 0x811c9dc5;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return (h >>> 0).toString(16).padStart(8, "0");
-}
-
-const round = (x: number, d = 3): number => Math.round(x * 10 ** d) / 10 ** d;
 const esc = (s: string): string =>
   s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 

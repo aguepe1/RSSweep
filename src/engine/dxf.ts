@@ -1,6 +1,7 @@
 // DXF — import (LINE/ARC/LWPOLYLINE/POLYLINE/SPLINE) y export R12.
 import type {
   Chain,
+  ClashResult,
   DXFParseResult,
   JoinOpts,
   JoinResult,
@@ -514,30 +515,61 @@ export function obstaclesFromDXF(text: string): { obstacles: Chain[]; warnings: 
   return { obstacles: chains, warnings };
 }
 
+/** Opciones del export DXF pro (E4-2). Todas opcionales: sin ellas, sale la huella
+ *  + envolvente + eje con las capas normalizadas. */
+export interface DxfExportOpts {
+  /** Obstáculos a dibujar (capa OBSTACULOS). */
+  obstacles?: Chain[] | null;
+  /** Resultado de clash: dibuja marcadores de invasión con el margen (mm). */
+  clash?: ClashResult | null;
+  /** Traducción arco→PK de proyecto para las etiquetas (por defecto identidad). */
+  pkOf?: (s: number) => number;
+  /** Separación de las etiquetas de PK (m); por defecto 10. */
+  pkStep?: number;
+  /** Relleno de la huella con SOLID (R12 no tiene HATCH). */
+  hatch?: boolean;
+  /** Líneas de comentario 999 de cabecera (app/versión/hash). */
+  meta?: string[];
+}
+
 /** Export R12 (POLYLINE/VERTEX/SEQEND): compatible con AutoCAD, ezdxf, QGIS. */
-export function writeDXF(track: Track, sweep: SweepResult): string {
+export function writeDXF(track: Track, sweep: SweepResult, opts: DxfExportOpts = {}): string {
   const L: string[] = [];
   const P = (c: number | string, v: number | string): void => {
     L.push(String(c));
     L.push(String(v));
   };
+  const pkOf = opts.pkOf ?? ((s: number) => s);
+  const pkStep = opts.pkStep && opts.pkStep > 0 ? opts.pkStep : 10;
+
+  // Comentario de cabecera (999): app/versión/hash + leyenda de capas. Va antes de
+  // la primera SECTION; ezdxf y los CAD lo toleran como comentario.
+  for (const line of opts.meta ?? []) P(999, line);
+  P(999, "BARRIDO DXF pro (R12/AC1009). Capas: EJE, HUELLA, HUELLA_RELLENO,");
+  P(999, "ENV_KIN, OBSTACULOS, INVASIONES, PK, COTAS.");
+
   P(0, "SECTION");
   P(2, "HEADER");
   P(9, "$ACADVER");
   P(1, "AC1009");
   P(0, "ENDSEC");
+
+  // Capas normalizadas y documentadas (nombre → color ACI).
+  const layers: Array<[string, number]> = [
+    ["EJE", 8],
+    ["HUELLA", 1],
+    ["HUELLA_RELLENO", 1],
+    ["ENV_KIN", 2],
+    ["OBSTACULOS", 7],
+    ["INVASIONES", 1],
+    ["PK", 8],
+    ["COTAS", 3],
+  ];
   P(0, "SECTION");
   P(2, "TABLES");
   P(0, "TABLE");
   P(2, "LAYER");
-  P(70, 3);
-  const layers: Array<[string, number]> = [
-    ["EJE_VIA", 3],
-    ["HUELLA_IZQ", 1],
-    ["HUELLA_DCHA", 1],
-    ["ENVOLVENTE_KIN_IZQ", 2],
-    ["ENVOLVENTE_KIN_DCHA", 2],
-  ];
+  P(70, layers.length);
   for (const [name, color] of layers) {
     P(0, "LAYER");
     P(2, name);
@@ -547,13 +579,15 @@ export function writeDXF(track: Track, sweep: SweepResult): string {
   }
   P(0, "ENDTAB");
   P(0, "ENDSEC");
+
   P(0, "SECTION");
   P(2, "ENTITIES");
-  function poly(pts: Vec2[], layer: string): void {
+  const poly = (pts: Vec2[], layer: string, closed = false): void => {
+    if (pts.length < 2) return;
     P(0, "POLYLINE");
     P(8, layer);
     P(66, 1);
-    P(70, 0);
+    P(70, closed ? 1 : 0);
     for (const [x, y] of pts) {
       P(0, "VERTEX");
       P(8, layer);
@@ -563,29 +597,112 @@ export function writeDXF(track: Track, sweep: SweepResult): string {
     }
     P(0, "SEQEND");
     P(8, layer);
-  }
-  const cl: Vec2[] = [];
-  for (let sv = 0; sv <= track.length; sv += 0.25) cl.push(track.pos(sv));
-  poly(cl, "EJE_VIA");
+  };
+  const text = (p: Vec2, s: string, layer: string, h = 0.6): void => {
+    P(0, "TEXT");
+    P(8, layer);
+    P(10, p[0].toFixed(4));
+    P(20, p[1].toFixed(4));
+    P(30, "0.0");
+    P(40, h.toFixed(3));
+    P(1, s);
+  };
+  const circle = (p: Vec2, rad: number, layer: string): void => {
+    P(0, "CIRCLE");
+    P(8, layer);
+    P(10, p[0].toFixed(4));
+    P(20, p[1].toFixed(4));
+    P(30, "0.0");
+    P(40, rad.toFixed(4));
+  };
+  /** SOLID relleno (quad no-bowtie): orden de esquinas 1,2,4,3. */
+  const solid = (a: Vec2, b: Vec2, c: Vec2, d: Vec2, layer: string): void => {
+    P(0, "SOLID");
+    P(8, layer);
+    P(10, a[0].toFixed(4));
+    P(20, a[1].toFixed(4));
+    P(30, "0.0");
+    P(11, b[0].toFixed(4));
+    P(21, b[1].toFixed(4));
+    P(31, "0.0");
+    P(12, d[0].toFixed(4));
+    P(22, d[1].toFixed(4));
+    P(32, "0.0");
+    P(13, c[0].toFixed(4));
+    P(23, c[1].toFixed(4));
+    P(33, "0.0");
+  };
+
+  // Eje de vía.
+  const axis: Vec2[] = [];
+  for (let sv = 0; sv <= track.length; sv += 0.25) axis.push(track.pos(sv));
+  poly(axis, "EJE");
+
+  // Bordes de huella y envolvente cinemática (coordenadas de plano por estación).
   const lb: Vec2[] = [];
   const rb: Vec2[] = [];
   const lk: Vec2[] = [];
   const rk: Vec2[] = [];
   const st = sweep.stations!;
+  const kinOn = !!sweep.summary?.kinEnabled;
   for (const [, r, l, k, rkin, lkin] of sweep.rows!) {
     lb.push([st.stX[k] + l * st.stNx[k], st.stY[k] + l * st.stNy[k]]);
     rb.push([st.stX[k] + r * st.stNx[k], st.stY[k] + r * st.stNy[k]]);
-    if (sweep.summary!.kinEnabled) {
+    if (kinOn) {
       lk.push([st.stX[k] + lkin * st.stNx[k], st.stY[k] + lkin * st.stNy[k]]);
       rk.push([st.stX[k] + rkin * st.stNx[k], st.stY[k] + rkin * st.stNy[k]]);
     }
   }
-  poly(lb, "HUELLA_IZQ");
-  poly(rb, "HUELLA_DCHA");
-  if (lk.length) {
-    poly(lk, "ENVOLVENTE_KIN_IZQ");
-    poly(rk, "ENVOLVENTE_KIN_DCHA");
+  // Relleno tipo hatch (R12 no tiene HATCH): tiras SOLID entre estaciones.
+  if (opts.hatch) {
+    for (let i = 0; i + 1 < lb.length; i++)
+      solid(lb[i], rb[i], rb[i + 1], lb[i + 1], "HUELLA_RELLENO");
   }
+  // Huella como anillo cerrado (borde izq + borde dcha invertido).
+  poly([...lb, ...rb.slice().reverse()], "HUELLA", true);
+  if (kinOn) poly([...lk, ...rk.slice().reverse()], "ENV_KIN", true);
+
+  // Obstáculos.
+  for (const ch of opts.obstacles ?? []) {
+    if (ch.length === 1) circle(ch[0], 0.15, "OBSTACULOS");
+    else poly(ch, "OBSTACULOS");
+  }
+
+  // Etiquetas de PK cada `pkStep` m sobre el eje.
+  for (let sv = 0; sv <= track.length + 1e-6; sv += pkStep) {
+    const p = track.pos(Math.min(sv, track.length));
+    text([p[0] + 0.3, p[1] + 0.3], `PK ${pkOf(sv).toFixed(1)}`, "PK", 0.5);
+  }
+
+  // Cotas de semiancho máximo (interior/exterior) en su PK.
+  const sm = sweep.summary;
+  if (sm) {
+    const at = (sv: number, off: number): Vec2 => {
+      const c = track.pos(sv);
+      const th = track.heading(sv);
+      const n: Vec2 = [Math.cos(th + Math.PI / 2), Math.sin(th + Math.PI / 2)];
+      return [c[0] + off * n[0], c[1] + off * n[1]];
+    };
+    text(
+      at(sm.sMaxLeft, sm.maxLeft + 0.4),
+      `izq ${sm.maxLeft.toFixed(3)} m @PK ${pkOf(sm.sMaxLeft).toFixed(1)}`,
+      "COTAS",
+      0.6,
+    );
+    text(
+      at(sm.sMaxRight, sm.maxRight - 0.4),
+      `dcha ${(-sm.maxRight).toFixed(3)} m @PK ${pkOf(sm.sMaxRight).toFixed(1)}`,
+      "COTAS",
+      0.6,
+    );
+  }
+
+  // Marcadores de invasión de gálibo con la magnitud del margen (mm).
+  for (const v of opts.clash?.violations ?? []) {
+    circle([v.x, v.y], 0.3, "INVASIONES");
+    text([v.x + 0.35, v.y], `${Math.round(v.margin * 1000)} mm`, "INVASIONES", 0.5);
+  }
+
   P(0, "ENDSEC");
   P(0, "EOF");
   return L.join("\n");
