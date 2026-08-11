@@ -22,4 +22,8 @@ export { buildReportData } from "./report-data";
 export type { ReportData } from "./report-data";
 export { TRACK_PRESETS, VEHICLE_PRESETS } from "./presets";
 export { buildConsist, defaultCoupler } from "./consist";
+export { buildXlsx } from "./xlsx";
+export type { XlsxSheet, XlsxCell } from "./xlsx";
+export { profileTable } from "./tables";
+export type { Table } from "./tables";
 export * from "../types";
