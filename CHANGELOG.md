@@ -8,6 +8,15 @@ Todas las versiones notables de BARRIDO. El formato sigue
 
 ### Añadido
 
+- **Export XLSX (E4-3)**: nueva opción «Informes ▸ Exportar libro XLSX» que genera un
+  libro Excel con hojas **Parámetros / Perfil / Rótulas / Clash / UIC** (cabecera en
+  negrita y congelada, anchos de columna, relleno rojo en estados excedidos/invasiones).
+  La hoja **Perfil** usa `profileTable`, **paritaria con el CSV de perfil** (mismas
+  columnas y valores). El `.xlsx` lo produce un **escritor OOXML propio sin dependencias**
+  (`src/engine/xlsx.ts`: SpreadsheetML + ZIP método store + CRC32), evitando SheetJS para
+  no inflar el HTML único offline. i18n ES/FR/EN. Cubierto por `tests/xlsx.test.ts`
+  (ZIP OOXML válido + paridad de perfil) y `e2e/xlsx.spec.ts` (descarga del .xlsx).
+
 - **Dos trenes acoplados (consist) + enganche**: nueva sección «Tren acoplado» en la
   pestaña Vehículo para simular un segundo tren acoplado tras el primero. El enganche
   (coupler) se modela como una **barra de tracción** (drawbar) de longitud y ancho

@@ -43,3 +43,12 @@ export function download(name: string, content: string, mime: string): void {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
+
+/** Descarga binaria (p. ej. .xlsx) desde un Uint8Array. */
+export function downloadBytes(name: string, bytes: Uint8Array, mime: string): void {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([bytes as BlobPart], { type: mime }));
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
