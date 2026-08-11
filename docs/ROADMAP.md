@@ -108,13 +108,15 @@ _AC: los dorados siguen en verde; CI bloquea un deploy roto; `releases/latest` r
 
 _AC: PDF A4 de 8–15 pp del caso demo legible en B/N; la hoja Perfil del XLSX iguala al CSV._
 
-### Fase 2 · Confianza y accesibilidad
+### Fase 2 · Confianza y accesibilidad ✅
 
-- [ ] Enrutar el español hardcodeado por `t()`; `aria-live`/`aria-label`; atrapar foco en
-      el diálogo; extender axe a estados con el editor abierto y post-cálculo.
-- [ ] **E5-3** página «Modelo» en la app (hipótesis/fórmulas/límites) y **E5-2**
-      `docs/VALIDATION_PROTOCOL.md` — las piezas de «nunca fiarse a ciegas».
-- [ ] Smoke test offline que abra el `dist/index.html` construido vía `file://`.
+- [x] Enrutar el español hardcodeado por `t()`; `aria-live`/`aria-label`; atrapar foco en
+      el diálogo (`src/ui/focus-trap.ts`); extender axe a estados con el editor y el
+      informe abiertos.
+- [x] **E5-3** página «Modelo y límites» en la app (hipótesis/fórmulas/límites, ES/FR/EN) y
+      **E5-2** `docs/VALIDATION_PROTOCOL.md` — las piezas de «nunca fiarse a ciegas».
+- [x] Smoke test offline que abre el `dist/index.html` construido vía `file://`
+      (`e2e/offline.spec.ts`).
 
 _AC: capturas de las tres locales sin fugas de español; axe limpio con el editor abierto._
 

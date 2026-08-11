@@ -1130,6 +1130,45 @@
         overflow: auto;
         padding: 24px 16px 60px;
       }
+      .model-body {
+        line-height: 1.6;
+        color: var(--ink);
+      }
+      .model-body .model-doc {
+        max-width: 820px;
+        margin: 0 auto;
+      }
+      .model-body h3 {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 26px 0 8px;
+        color: var(--ink);
+      }
+      .model-body h3:first-child {
+        margin-top: 0;
+      }
+      .model-body p {
+        margin: 8px 0;
+        color: var(--ink2, var(--ink));
+      }
+      .model-body ul {
+        margin: 8px 0 8px 20px;
+      }
+      .model-body li {
+        margin: 4px 0;
+      }
+      .model-body .model-note {
+        border-left: 3px solid var(--accent, #b98900);
+        background: var(--surface);
+        padding: 10px 14px;
+        margin: 16px 0;
+        border-radius: 0 4px 4px 0;
+        font-size: 13px;
+      }
+      .model-body code {
+        font-family: var(--mono, monospace);
+        font-size: 0.92em;
+      }
       /* Página tipo A4 (210 mm ≈ 794 px @96dpi) */
       .rp-page {
         position: relative;
@@ -1484,6 +1523,8 @@
         <div class="mitem">
           <button class="mbtn" aria-haspopup="true" data-i18n="menu.help">Ayuda</button>
           <div class="mdrop">
+            <button class="mopt" id="menuModel" data-i18n="help.model">Modelo y límites…</button>
+            <div class="msep"></div>
             <div class="mopt-static" data-i18n="help.text">
               BARRIDO — contra-cálculo de barrido para material rodante tranviario. Unidades
               internas en metros y radianes. UIC 505-1 / EN 15273 son referencias no certificadas:
@@ -1919,7 +1960,14 @@
                   Calcular huella
                 </button>
                 <div id="progressWrap" style="display: none; margin-top: 8px">
-                  <div class="progress">
+                  <div
+                    class="progress"
+                    role="progressbar"
+                    id="progressBarOuter"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    aria-label="Progreso del cálculo"
+                  >
                     <div id="progressBar" class="progress-bar"></div>
                   </div>
                   <button
@@ -2047,8 +2095,12 @@
             <button class="btn small" id="btnPngOut">PNG</button>
             <button class="btn small" id="btnSvgOut">SVG</button>
           </div>
-          <canvas id="viewport"></canvas>
-          <div id="status"></div>
+          <canvas
+            id="viewport"
+            role="img"
+            aria-label="Vista en planta del barrido: eje del trazado, huella del vehículo y envolvente cinemática"
+          ></canvas>
+          <div id="status" role="status" aria-live="polite"></div>
           <div class="vplegend">
             <span
               class="sw"
@@ -2145,7 +2197,11 @@
 
       <div class="profilebar" id="profileWrap">
         <h3 data-i18n="profile.title">Semianchos barridos respecto al eje · por PK</h3>
-        <canvas id="profile"></canvas>
+        <canvas
+          id="profile"
+          role="img"
+          aria-label="Gráfico de semianchos barridos respecto al eje, por punto kilométrico"
+        ></canvas>
       </div>
 
       <div class="statusbar">
@@ -2206,7 +2262,13 @@
           parámetros.
         </div>
       </div>
-      <div id="trainCanvas" class="train-canvas"></div>
+      <div
+        id="trainCanvas"
+        class="train-canvas"
+        tabindex="0"
+        role="group"
+        aria-label="Lienzo del tren: arrastra los bogies y pulsa cajas, bogies o fuelles para editarlos"
+      ></div>
       <div id="trainPopover" class="train-popover" hidden></div>
     </div>
 
@@ -2231,7 +2293,44 @@
           </button>
         </div>
       </div>
-      <div id="reportBody" class="report-body"></div>
+      <div
+        id="reportBody"
+        class="report-body"
+        tabindex="0"
+        aria-label="Documento del informe de gálibo"
+      ></div>
+    </div>
+
+    <!-- Modelo y límites (E5-3): página de ayuda en-app con las hipótesis físicas
+         del motor (ENGINE_NOTES §1/§5). Solo texto; se rellena desde src/ui/model-help.ts -->
+    <div
+      id="modelView"
+      class="report-view"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modelTitle"
+      hidden
+    >
+      <div class="report-head">
+        <h2 id="modelTitle" data-i18n="model.title">Modelo y límites</h2>
+        <div class="report-head-actions">
+          <button
+            class="btn small"
+            id="btnModelClose"
+            data-i18n-title="te.close"
+            aria-label="Cerrar"
+            title="Cerrar"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+      <div
+        id="modelBody"
+        class="report-body model-body"
+        tabindex="0"
+        aria-label="Documento del modelo y sus límites"
+      ></div>
     </div>
 
     <script type="module" src="/src/main.ts"></script>
