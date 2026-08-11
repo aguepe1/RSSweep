@@ -8,6 +8,7 @@
 // salvo el rango de scrub, para no interferir con la escritura.
 
 import { isTrainEditorOpen } from "./train-editor";
+import { isReportOpen } from "./report";
 
 /** ¿El usuario pidió movimiento reducido? (sin auto-reproducción animada). */
 export function prefersReducedMotion(): boolean {
@@ -56,6 +57,9 @@ export function initShortcuts(): void {
     // Con el editor del tren abierto, sus propios controles gobiernan el teclado
     // (Esc cierra); no dejamos que los atajos del shell se filtren.
     if (isTrainEditorOpen()) return;
+    // Con el informe abierto, el teclado lo gobierna la vista (Esc cierra; Ctrl+P
+    // cae al print nativo del navegador, que imprime el documento paginado).
+    if (isReportOpen()) return;
     const mod = e.ctrlKey || e.metaKey;
 
     // Atajos con modificador: guardar (Ctrl+S) e informe (Ctrl+P).
@@ -68,7 +72,7 @@ export function initShortcuts(): void {
       }
       if (k === "p") {
         e.preventDefault();
-        trigger("menuReports"); // abre el desplegable de informes (E4 los desarrolla)
+        trigger("menuReport"); // abre la vista de informe de gálibo (E4-1)
         return;
       }
       return; // otros modificadores (Z/Y) los gestiona history.ts
