@@ -13,7 +13,8 @@
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && prettier --check .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "gen:dxf-sample": "tsx tools/gen_sample_dxf.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
@@ -26,6 +27,7 @@
     "@typescript-eslint/parser": "^8.18.0",
     "eslint": "^9.17.0",
     "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
     "vite-plugin-singlefile": "^2.1.0",

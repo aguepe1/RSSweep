@@ -10,14 +10,10 @@ import {
 import { APP_NAME, VERSION } from "../version";
 import { $, download, fmt } from "./dom";
 import { pkVal } from "./pk";
+import { paramHash } from "./param-hash";
 import { state } from "./state";
 import SweepWorker from "./sweep-worker?worker&inline";
 import type { SweepRequest, WorkerResponse } from "./worker-protocol";
-
-/** Comentario DXF R12 (grupo 999) con app + versión + sello temporal. */
-function dxfMeta(): string {
-  return `999\n${APP_NAME} ${VERSION} — export ${new Date().toISOString()}\n`;
-}
 
 /** Cabecera de metadatos para exports CSV (líneas de comentario `#`). */
 function csvMeta(what: string): string {
@@ -209,12 +205,21 @@ export function initController(): void {
   });
 
   $("btnDxfOut").addEventListener("click", () => {
-    if (state.sweep)
-      download(
-        "huella_barrida.dxf",
-        dxfMeta() + writeDXF(state.track!, state.sweep),
-        "application/dxf",
-      );
+    if (!state.sweep) return;
+    download(
+      "huella_barrida.dxf",
+      writeDXF(state.track!, state.sweep, {
+        obstacles: state.obstacles,
+        clash: state.clash,
+        pkOf: pkVal,
+        hatch: true,
+        meta: [
+          `${APP_NAME} ${VERSION} — export ${new Date().toISOString()}`,
+          `hash ${paramHash()}`,
+        ],
+      }),
+      "application/dxf",
+    );
   });
   $("btnCsvOut").addEventListener("click", () => {
     if (!state.sweep) return;
