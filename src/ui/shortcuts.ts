@@ -9,6 +9,7 @@
 
 import { isTrainEditorOpen } from "./train-editor";
 import { isReportOpen } from "./report";
+import { isModelOpen } from "./model-help";
 
 /** ¿El usuario pidió movimiento reducido? (sin auto-reproducción animada). */
 export function prefersReducedMotion(): boolean {
@@ -60,6 +61,8 @@ export function initShortcuts(): void {
     // Con el informe abierto, el teclado lo gobierna la vista (Esc cierra; Ctrl+P
     // cae al print nativo del navegador, que imprime el documento paginado).
     if (isReportOpen()) return;
+    // Ídem con la página de Modelo y límites abierta (Esc cierra).
+    if (isModelOpen()) return;
     const mod = e.ctrlKey || e.metaKey;
 
     // Atajos con modificador: guardar (Ctrl+S) e informe (Ctrl+P).

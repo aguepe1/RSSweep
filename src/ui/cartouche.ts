@@ -40,8 +40,8 @@ export function renderCartouche(): void {
     rows.push([
       t("cart.dir"),
       nRev
-        ? `bidireccional · la vuelta gobierna ${nRev}/${nTot} PK`
-        : "bidireccional · la ida gobierna todos los PK",
+        ? t("cart.dirRev").replace("{n}", String(nRev)).replace("{m}", String(nTot))
+        : t("cart.dirFwd"),
     ]);
   }
   if (s.kinEnabled) {
@@ -62,7 +62,7 @@ export function renderCartouche(): void {
     rows.push([t("cart.uicEquiv"), `${fmt(Math.max(uL, -uR))} / ${fmt(Math.min(uL, -uR))} m`]);
     rows.push([
       t("cart.uicDelta"),
-      `<span class="v amber">${fmt(uL - uR - s.totalWidth)} m</span> (ahorro por articulación)`,
+      `<span class="v amber">${fmt(uL - uR - s.totalWidth)} m</span> (${t("cart.uicSaving")})`,
     ]);
   }
   if (state.clash) {
@@ -71,21 +71,21 @@ export function renderCartouche(): void {
     rows.push([
       `${t("cart.clashMargin")} <span style="color:var(--faint)">(env. ${c.envelope})</span>`,
       c.minMargin == null
-        ? "sin obstáculos en rango"
+        ? t("cart.noObs")
         : `<span class="v ${ok ? "" : "red"}">${fmt(c.minMargin * 1000, 0)} mm</span> @ PK ${pkFmt(c.minAt!.pk)}${ok ? "" : " ⚠"}`,
     ]);
     rows.push([
       t("cart.violations"),
       c.violations.length
-        ? `<span class="v red">${c.violations.length} punto(s)</span>`
-        : "ninguna",
+        ? `<span class="v red">${c.violations.length} ${t("cart.points")}</span>`
+        : t("cart.none"),
     ]);
   }
   for (const j of state.sweep.joints!) {
     const cls = j.exceeded ? "red" : "";
     rows.push([
-      `Rótula R${j.idx + 1} ${j.label} <span style="color:var(--faint)">(${j.type})</span>`,
-      `<span class="v ${cls}">${fmt(j.maxAngle, 1)}°</span> @ PK ${pkFmt(j.pk)} · lím ${fmt(j.limit, 0)}°${j.exceeded ? " ⚠" : ""}`,
+      `${t("cart.joint")} R${j.idx + 1} ${j.label} <span style="color:var(--faint)">(${j.type})</span>`,
+      `<span class="v ${cls}">${fmt(j.maxAngle, 1)}°</span> @ PK ${pkFmt(j.pk)} · ${t("cart.lim")} ${fmt(j.limit, 0)}°${j.exceeded ? " ⚠" : ""}`,
     ]);
   }
   rows.push([t("cart.steps"), `${s.nSteps} · ${fmt(state.calcMs, 0)} ms`]);

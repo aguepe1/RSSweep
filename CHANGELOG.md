@@ -8,6 +8,23 @@ Todas las versiones notables de BARRIDO. El formato sigue
 
 ### Añadido
 
+- **Página «Modelo y límites» en-app (E5-3)**: nueva entrada «Ayuda ▸ Modelo y límites…»
+  que abre un documento con las hipótesis físicas del motor (convenios y unidades, modelo
+  cinemático del vehículo, envolventes geométrica y cinemática cuasi-estática, solver de
+  equilibrio) y sus **limitaciones conocidas** declaradas, con el disclaimer no certificado
+  EN 15273 / UIC 505. Traducida ES/FR/EN. Cubierta por `e2e/model.spec.ts`.
+- **Protocolo de validación (E5-2)**: `docs/VALIDATION_PROTOCOL.md` documenta los niveles
+  de validación (analítico exacto, regresión funcional, matriz de humo, propiedad,
+  robustez), cómo reproducirlos y la gobernanza de la regla de oro.
+- **Smoke test offline (E5-2)**: `e2e/offline.spec.ts` abre el artefacto único
+  `dist/index.html` vía `file://` y verifica que **arranca y calcula sin ninguna petición
+  de red** en runtime (el barrido corre en un Web Worker inline bajo `file://`).
+- **Accesibilidad (E3-6)**: la barra de estado es una región `aria-live="polite"`, la
+  barra de progreso es un `role="progressbar"` con `aria-valuenow`, los lienzos (planta y
+  perfil) llevan `role="img"` con etiqueta, y los diálogos modales (editor del tren,
+  informe, modelo) atrapan el foco con Tab/Shift+Tab (`src/ui/focus-trap.ts`) y devuelven
+  el foco al control que los abrió al cerrarse. La suite axe se amplía a los estados con el
+  editor y el informe abiertos.
 - **DXF pro (E4-2)**: el export DXF (Informes ▸ Exportar huella DXF) pasa de una huella
   suelta a un plano R12 completo: **capas normalizadas y documentadas** (EJE, HUELLA,
   HUELLA_RELLENO, ENV_KIN, OBSTACULOS, INVASIONES, PK, COTAS con colores ACI), huella y
@@ -21,6 +38,8 @@ Todas las versiones notables de BARRIDO. El formato sigue
 
 ### Cambiado
 
+- **i18n**: cadenas antes fijas en español (cajetín de resultados, estados de cálculo) se
+  enrutan por `t()` con claves nuevas en ES/FR/EN.
 - CI: nuevo paso de **validación DXF con ezdxf** (Python) que genera un DXF de muestra con
   el motor real y lo audita. Nueva dev-dependency `tsx` (MIT) para ejecutar el generador.
 

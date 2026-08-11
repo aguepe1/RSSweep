@@ -15,12 +15,14 @@ import { t } from "./i18n";
 import { run } from "./controller";
 import { activateTab } from "./layout";
 import { addDefaultModule, applyModuleTypeDefaults, renderVehiclePanel } from "./panels";
+import { trapFocus } from "./focus-trap";
 
 let editorEl: HTMLElement;
 let canvasEl: HTMLElement;
 let popEl: HTMLElement;
 let dimEditEl: HTMLInputElement | null = null;
 let opened = false;
+let releaseTrap: (() => void) | null = null;
 
 // geometría del último render (para mapear puntero→mundo durante el arrastre)
 interface Layout {
@@ -146,6 +148,7 @@ export function openTrainEditor(): void {
   editorEl.hidden = false;
   syncToolbar();
   renderEditor();
+  releaseTrap = trapFocus(editorEl);
   $<HTMLButtonElement>("btnCloseTrain").focus();
 }
 
@@ -153,6 +156,8 @@ export function closeTrainEditor(): void {
   opened = false;
   hidePopover();
   hideDimEditor();
+  releaseTrap?.();
+  releaseTrap = null;
   editorEl.hidden = true;
   $<HTMLButtonElement>("btnEditTrain").focus();
 }

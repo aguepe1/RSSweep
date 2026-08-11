@@ -24,6 +24,7 @@ import { initShortcuts } from "./ui/shortcuts";
 import { initTrainEditor } from "./ui/train-editor";
 import { initConsist } from "./ui/consist-ui";
 import { initReport } from "./ui/report";
+import { initModelHelp } from "./ui/model-help";
 import { initXlsxExport } from "./ui/xlsx-export";
 import { setRedraw } from "./ui/vpshared";
 
@@ -62,6 +63,7 @@ function boot(): void {
   initTrainEditor();
   initConsist();
   initReport();
+  initModelHelp();
   initXlsxExport();
 
   // redibujado al redimensionar el viewport (arrastra también el perfil)

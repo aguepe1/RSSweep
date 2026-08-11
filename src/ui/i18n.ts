@@ -112,6 +112,59 @@ const DICT: Record<Locale, Record<string, string>> = {
     "rp.col.margin": "Margen",
     "help.text":
       "BARRIDO — contra-cálculo de barrido para material rodante tranviario. Unidades internas en metros y radianes. UIC 505-1 / EN 15273 son referencias no certificadas: ver hipótesis del modelo.",
+    "help.model": "Modelo y límites…",
+    "model.title": "Modelo y límites",
+    "model.intro":
+      "BARRIDO es una herramienta de contra-cálculo de verificación del barrido (swept path / envolvente cinemática) para material rodante tranviario. Su valor no está en competir con AutoTURN en producción de diseño, sino en la transparencia, la auditabilidad y la automatización. Esta página resume el modelo físico y sus límites declarados; cada hipótesis se documenta en detalle en docs/ENGINE_NOTES.md.",
+    "model.s1.title": "Convenios y unidades",
+    "model.s1.body":
+      "Internamente todo se calcula en metros y radianes; la conversión a otras unidades solo ocurre en la interfaz. Convenio geométrico: curvatura k>0 = curva a izquierda; la normal de estación es +90° respecto al rumbo; los offsets laterales llevan signo (izquierda +, derecha −). El sentido de marcha es el sentido de dibujo del eje. El motor trabaja siempre sobre el eje (línea media); los dos carriles y los bastidores de bogie son presentación derivada y no re-calculan anchos.",
+    "model.s2.title": "Modelo cinemático del vehículo",
+    "model.s2.item.1":
+      "Bogie pivotante: el pivote va sobre el eje de vía; el lazo de caja es la secante local sobre el empate (hipótesis: amortiguadores anti-lazo centran la caja) salvo que el solver de equilibrio lo libere.",
+    "model.s2.item.2":
+      "Bogie rígido: conjunto caja+rodadura solidario, con rumbo forzado a la secante y anclaje en el punto medio de la cuerda del empate (desplazado al interior la sagitta p²/8R). Es el caso de validación exacta contra UIC 505.",
+    "model.s2.item.3":
+      "Coche de dos bogies (biBogie): cuerpo rígido único apoyado en dos pivotes; cada bogie se ancla en el punto medio de la cuerda de su propio empate y el rumbo del cuerpo es la cuerda entre anclajes. Se excluye del solver de equilibrio.",
+    "model.s2.item.4":
+      "Módulo suspendido: cuerda rígida entre la articulación trasera del cuerpo anterior y la delantera del siguiente bogie; la posición se resuelve por restricción de longitud. Las rótulas pueden ser libres, rígidas o bisectriz (bielas de centrado, requieren módulo suspendido adyacente). Los fuelles retranquean los testeros gap/2 y SÍ entran en la envolvente.",
+    "model.s3.title": "Envolvente geométrica",
+    "model.s3.item.1":
+      "Se registra, cada 0,25 m de eje, el offset extremo izquierdo/derecho de todos los contornos muestreados (cuerpos + fuelles + espejos), proyectados a la estación más cercana; el signo del offset es (p−C)·N.",
+    "model.s3.item.2":
+      "Aislamiento entre ramas: cada muestra solo se remapea a estaciones dentro de la abscisa que ocupa el vehículo en ese paso, de modo que ramas separadas en abscisa no se contaminan aunque estén cerca en el plano.",
+    "model.s3.item.3":
+      "Límite conocido: en horquillas de radio inviable un vehículo articulado largo envuelve físicamente ambas ramas a la vez; la región barrida es conexa y ninguna unión booleana de polígonos la separa. Para radios navegables (R≳20 m) no hay contaminación.",
+    "model.s3.item.4":
+      "Travesía completa (opt-in): al cubrir entrada→salida, fuera del trazado el eje se prolonga en recta con el rumbo del segmento extremo (hipótesis: la vía no cambia de curvatura al salir del trazado modelado). Si el trazado real sigue en curva, la huella de entrada/salida es optimista.",
+    "model.s4.title": "Solver de equilibrio (bisectriz)",
+    "model.s4.body":
+      "Con rótulas bisectriz, el motor minimiza una energía que combina la desviación de cada lazo libre respecto a su secante y la penalización de centrado de las bielas, sobre los lazos de los bogies pivotantes (los rígidos y los biBogie quedan excluidos). La optimización es Newton multivariable con amortiguación de Levenberg y paso limitado. Sin rótulas bisectriz se toma el camino rápido sin optimización.",
+    "model.s5.title": "Envolvente cinemática (cuasi-estática)",
+    "model.s5.body":
+      "Reglas cuasi-estáticas simplificadas, NO EN 15273 certificada. Por estación, con curvatura local, se añaden al ancho geométrico los términos de peralte, insuficiencia/exceso, juegos y tolerancias. Valores por defecto:",
+    "model.s5.item.1":
+      "Peralte D = D_max escalado por curvatura, o interpolado de tabla CSV pk;D_mm si se carga (D_max 120 mm, R_pleno 30 m).",
+    "model.s5.item.2":
+      "Insuficiencia/exceso: sin perfil de velocidad se escala heurísticamente por curvatura; con tabla CSV pk;v_kmh se calcula la insuficiencia real I(s) (I_max 100 mm).",
+    "model.s5.item.3": "Alturas y vía: h = 1,60 m, e = 1,50 m, h₀ = 0,70 m, σ = 0,25.",
+    "model.s5.item.4": "Juegos y tolerancias: q = 35 mm, T_alineación = 20 mm, T_peralte = 15 mm.",
+    "model.limitsTitle": "Limitaciones conocidas",
+    "model.lim.1":
+      "Envolvente por estaciones: aislada entre ramas por ventana longitudinal; el residual son las horquillas de radio inviable (doble ocupación real, conexa).",
+    "model.lim.2":
+      "El lazo de caja por defecto es la secante (aproximación de amortiguadores centrados); solo se relaja con rótulas bisectriz.",
+    "model.lim.3":
+      "Articulaciones de módulos suspendidos: solo en los extremos del módulo (sin offsets); los offsets sí se soportan en bogies.",
+    "model.lim.4":
+      "Cajas rectangulares sin afinamiento de testeros de cabina (conservador en el interior de curva).",
+    "model.lim.5":
+      "Peralte por tabla: usa |D| y decide el lado por la curvatura; los peraltes en recta se ignoran de facto.",
+    "model.lim.6":
+      "El rendimiento de la bisectriz es de ~0,5–1,5 s por barrido; se ejecuta en un Web Worker para no bloquear la interfaz.",
+    "model.validationTitle": "Validación",
+    "model.validationBody":
+      "El motor está validado numéricamente contra casos analíticos exactos (dos ejes rígido en círculo, sagitta de cuerda, coche de dos bogies) y contra una batería de valores dorados que son tests obligatorios de regresión: ningún cambio del motor se acepta sin que pasen. El protocolo completo (casos, tolerancias y cómo reproducirlos) está en docs/VALIDATION_PROTOCOL.md.",
     "rail.input": "▤ Entrada",
     "rail.results": "Resultados ▤",
     "banner.msg": "Se encontró una sesión anterior sin guardar.",
@@ -290,6 +343,14 @@ const DICT: Record<Locale, Record<string, string>> = {
     "cart.totalWidth": "Ancho total barrido",
     "cart.overWidth": "Sobreancho vs. caja",
     "cart.dir": "Sentido de análisis",
+    "cart.dirRev": "{n}/{m} secciones en sentido inverso",
+    "cart.dirFwd": "Sentido de marcha (avance)",
+    "cart.uicSaving": "ahorro por articulación",
+    "cart.noObs": "sin obstáculos en rango",
+    "cart.points": "punto(s)",
+    "cart.none": "ninguna",
+    "cart.joint": "Rótula",
+    "cart.lim": "lím",
     "cart.kinLR": "Envolv. cinemática izq/dcha",
     "cart.kinTotal": "Envolv. cinemática total",
     "cart.uicEquiv": "UIC 505-1 equiv. int/ext",
@@ -304,6 +365,10 @@ const DICT: Record<Locale, Record<string, string>> = {
     "hyp.uic": "UIC 505",
     "hyp.bidir": "bidireccional",
     "hyp.fullTraversal": "travesía completa",
+    "status.cancelled": "Cálculo cancelado.",
+    "status.computing": "Calculando…",
+    "status.computingEq":
+      "Calculando… (equilibrio de bielas de centrado, puede tardar unos segundos)",
   },
   fr: {
     "menu.file": "Fichier",
@@ -403,6 +468,59 @@ const DICT: Record<Locale, Record<string, string>> = {
     "rp.col.margin": "Marge",
     "help.text":
       "BARRIDO — contre-calcul de balayage pour matériel roulant tramway. Unités internes en mètres et radians. UIC 505-1 / EN 15273 sont des références non certifiées : voir les hypothèses du modèle.",
+    "help.model": "Modèle et limites…",
+    "model.title": "Modèle et limites",
+    "model.intro":
+      "BARRIDO est un outil de contre-calcul de vérification du balayage (swept path / enveloppe cinématique) pour matériel roulant tramway. Sa valeur n'est pas de concurrencer AutoTURN en production de conception, mais la transparence, l'auditabilité et l'automatisation. Cette page résume le modèle physique et ses limites déclarées ; chaque hypothèse est documentée en détail dans docs/ENGINE_NOTES.md.",
+    "model.s1.title": "Conventions et unités",
+    "model.s1.body":
+      "En interne tout est calculé en mètres et radians ; la conversion vers d'autres unités n'a lieu que dans l'interface. Convention géométrique : courbure k>0 = courbe à gauche ; la normale de station est à +90° du cap ; les décalages latéraux sont signés (gauche +, droite −). Le sens de marche est le sens de tracé de l'axe. Le moteur travaille toujours sur l'axe (ligne médiane) ; les deux rails et les châssis de bogie sont une présentation dérivée et ne recalculent pas les largeurs.",
+    "model.s2.title": "Modèle cinématique du véhicule",
+    "model.s2.item.1":
+      "Bogie pivotant : le pivot est sur l'axe de voie ; le lacet de caisse est la sécante locale sur l'empattement (hypothèse : amortisseurs anti-lacet centrant la caisse) sauf si le solveur d'équilibre le libère.",
+    "model.s2.item.2":
+      "Bogie rigide : ensemble caisse+roulement solidaire, cap forcé à la sécante et ancrage au milieu de la corde de l'empattement (décalé vers l'intérieur de la flèche p²/8R). C'est le cas de validation exacte contre UIC 505.",
+    "model.s2.item.3":
+      "Voiture à deux bogies (biBogie) : corps rigide unique reposant sur deux pivots ; chaque bogie s'ancre au milieu de la corde de son propre empattement et le cap du corps est la corde entre ancrages. Exclue du solveur d'équilibre.",
+    "model.s2.item.4":
+      "Module suspendu : corde rigide entre l'articulation arrière du corps précédent et l'articulation avant du bogie suivant ; la position se résout par contrainte de longueur. Les rotules peuvent être libres, rigides ou bissectrice (bielles de centrage, nécessitent un module suspendu adjacent). Les soufflets décalent les faces de gap/2 et entrent bien dans l'enveloppe.",
+    "model.s3.title": "Enveloppe géométrique",
+    "model.s3.item.1":
+      "On enregistre, tous les 0,25 m d'axe, le décalage extrême gauche/droite de tous les contours échantillonnés (corps + soufflets + rétroviseurs), projetés sur la station la plus proche ; le signe du décalage est (p−C)·N.",
+    "model.s3.item.2":
+      "Isolation entre branches : chaque échantillon n'est remappé que sur les stations dans l'abscisse occupée par le véhicule à ce pas, de sorte que des branches séparées en abscisse ne se contaminent pas même proches dans le plan.",
+    "model.s3.item.3":
+      "Limite connue : dans les épingles de rayon irréalisable, un véhicule articulé long enveloppe physiquement les deux branches à la fois ; la région balayée est connexe et aucune union booléenne de polygones ne la sépare. Pour des rayons circulables (R≳20 m) il n'y a pas de contamination.",
+    "model.s3.item.4":
+      "Traversée complète (opt-in) : en couvrant entrée→sortie, hors du tracé l'axe se prolonge en droite avec le cap du segment extrême (hypothèse : la voie ne change pas de courbure en sortant du tracé modélisé). Si le tracé réel continue en courbe, l'empreinte d'entrée/sortie est optimiste.",
+    "model.s4.title": "Solveur d'équilibre (bissectrice)",
+    "model.s4.body":
+      "Avec des rotules bissectrice, le moteur minimise une énergie combinant l'écart de chaque lacet libre à sa sécante et la pénalité de centrage des bielles, sur les lacets des bogies pivotants (les rigides et les biBogie sont exclus). L'optimisation est un Newton multivariable avec amortissement de Levenberg et pas limité. Sans rotules bissectrice, le chemin rapide sans optimisation est pris.",
+    "model.s5.title": "Enveloppe cinématique (quasi-statique)",
+    "model.s5.body":
+      "Règles quasi-statiques simplifiées, NON certifiées EN 15273. Par station, avec la courbure locale, on ajoute à la largeur géométrique les termes de dévers, insuffisance/excès, jeux et tolérances. Valeurs par défaut :",
+    "model.s5.item.1":
+      "Dévers D = D_max échelonné par courbure, ou interpolé d'une table CSV pk;D_mm si chargée (D_max 120 mm, R_plein 30 m).",
+    "model.s5.item.2":
+      "Insuffisance/excès : sans profil de vitesse, échelonné heuristiquement par courbure ; avec table CSV pk;v_kmh, on calcule l'insuffisance réelle I(s) (I_max 100 mm).",
+    "model.s5.item.3": "Hauteurs et voie : h = 1,60 m, e = 1,50 m, h₀ = 0,70 m, σ = 0,25.",
+    "model.s5.item.4": "Jeux et tolérances : q = 35 mm, T_alignement = 20 mm, T_dévers = 15 mm.",
+    "model.limitsTitle": "Limitations connues",
+    "model.lim.1":
+      "Enveloppe par stations : isolée entre branches par fenêtre longitudinale ; le résiduel sont les épingles de rayon irréalisable (double occupation réelle, connexe).",
+    "model.lim.2":
+      "Le lacet de caisse par défaut est la sécante (approximation d'amortisseurs centrés) ; il n'est relâché qu'avec des rotules bissectrice.",
+    "model.lim.3":
+      "Articulations des modules suspendus : uniquement aux extrémités du module (sans décalages) ; les décalages sont bien supportés sur les bogies.",
+    "model.lim.4":
+      "Caisses rectangulaires sans affinement des faces de cabine (conservateur à l'intérieur de courbe).",
+    "model.lim.5":
+      "Dévers par table : utilise |D| et décide le côté par la courbure ; les dévers en alignement droit sont ignorés de fait.",
+    "model.lim.6":
+      "La performance de la bissectrice est de ~0,5–1,5 s par balayage ; elle s'exécute dans un Web Worker pour ne pas bloquer l'interface.",
+    "model.validationTitle": "Validation",
+    "model.validationBody":
+      "Le moteur est validé numériquement contre des cas analytiques exacts (deux essieux rigide en cercle, flèche de corde, voiture à deux bogies) et contre une batterie de valeurs de référence qui sont des tests de régression obligatoires : aucun changement du moteur n'est accepté sans qu'ils passent. Le protocole complet (cas, tolérances et reproduction) est dans docs/VALIDATION_PROTOCOL.md.",
     "rail.input": "▤ Entrée",
     "rail.results": "Résultats ▤",
     "banner.msg": "Une session précédente non enregistrée a été trouvée.",
@@ -580,6 +698,14 @@ const DICT: Record<Locale, Record<string, string>> = {
     "cart.totalWidth": "Largeur totale balayée",
     "cart.overWidth": "Surlargeur vs caisse",
     "cart.dir": "Sens d’analyse",
+    "cart.dirRev": "{n}/{m} sections en sens inverse",
+    "cart.dirFwd": "Sens de marche (avance)",
+    "cart.uicSaving": "gain par articulation",
+    "cart.noObs": "aucun obstacle dans la plage",
+    "cart.points": "point(s)",
+    "cart.none": "aucune",
+    "cart.joint": "Rotule",
+    "cart.lim": "lim",
     "cart.kinLR": "Env. cinématique g/d",
     "cart.kinTotal": "Env. cinématique totale",
     "cart.uicEquiv": "UIC 505-1 équiv. int/ext",
@@ -593,6 +719,10 @@ const DICT: Record<Locale, Record<string, string>> = {
     "hyp.uic": "UIC 505",
     "hyp.bidir": "bidirectionnel",
     "hyp.fullTraversal": "traversée complète",
+    "status.cancelled": "Calcul annulé.",
+    "status.computing": "Calcul en cours…",
+    "status.computingEq":
+      "Calcul en cours… (équilibre des bielles de centrage, cela peut prendre quelques secondes)",
   },
   en: {
     "menu.file": "File",
@@ -692,6 +822,59 @@ const DICT: Record<Locale, Record<string, string>> = {
     "rp.col.margin": "Margin",
     "help.text":
       "BARRIDO — swept-path counter-calculation for tram rolling stock. Internal units in metres and radians. UIC 505-1 / EN 15273 are non-certified references: see model assumptions.",
+    "help.model": "Model & limits…",
+    "model.title": "Model & limits",
+    "model.intro":
+      "BARRIDO is a swept-path / kinematic-envelope verification counter-calculation tool for tram rolling stock. Its value is not in competing with AutoTURN on design production, but in transparency, auditability and automation. This page summarises the physical model and its declared limits; every assumption is documented in detail in docs/ENGINE_NOTES.md.",
+    "model.s1.title": "Conventions and units",
+    "model.s1.body":
+      "Everything is computed internally in metres and radians; conversion to other units happens only in the interface. Geometric convention: curvature k>0 = left curve; the station normal is +90° from the heading; lateral offsets are signed (left +, right −). The running direction is the axis drawing direction. The engine always works on the axis (centreline); the two rails and bogie frames are derived presentation and do not recompute widths.",
+    "model.s2.title": "Vehicle kinematic model",
+    "model.s2.item.1":
+      "Pivoting bogie: the pivot sits on the track axis; body yaw is the local secant over the wheelbase (assumption: anti-yaw dampers centre the body) unless the equilibrium solver releases it.",
+    "model.s2.item.2":
+      "Rigid bogie: body+running gear move as one, heading forced to the secant and anchored at the midpoint of the wheelbase chord (inset toward the inside by the sagitta p²/8R). This is the exact validation case against UIC 505.",
+    "model.s2.item.3":
+      "Two-bogie car (biBogie): a single rigid body resting on two pivots; each bogie anchors at the midpoint of its own wheelbase chord and the body heading is the chord between anchors. Excluded from the equilibrium solver.",
+    "model.s2.item.4":
+      "Suspended module: a rigid chord between the rear articulation of the previous body and the front articulation of the next bogie; the position is solved by a length constraint. Joints can be free, rigid or bisector (centering rods, requiring an adjacent suspended module). Bellows inset the faces by gap/2 and DO enter the envelope.",
+    "model.s3.title": "Geometric envelope",
+    "model.s3.item.1":
+      "Every 0.25 m of axis, the extreme left/right offset of all sampled contours (bodies + bellows + mirrors) is recorded, projected to the nearest station; the offset sign is (p−C)·N.",
+    "model.s3.item.2":
+      "Branch isolation: each sample is only remapped to stations within the abscissa the vehicle occupies at that step, so branches separated in abscissa do not contaminate each other even when close in plan.",
+    "model.s3.item.3":
+      "Known limit: in hairpins of infeasible radius a long articulated vehicle physically envelops both branches at once; the swept region is connected and no boolean polygon union separates it. For navigable radii (R≳20 m) there is no contamination.",
+    "model.s3.item.4":
+      "Full traversal (opt-in): when covering entry→exit, outside the track the axis is extended straight with the heading of the end segment (assumption: the track does not change curvature beyond the modelled alignment). If the real track continues in a curve, the entry/exit footprint is optimistic.",
+    "model.s4.title": "Equilibrium solver (bisector)",
+    "model.s4.body":
+      "With bisector joints, the engine minimises an energy combining the deviation of each free yaw from its secant and the centering penalty of the rods, over the yaws of pivoting bogies (rigid and biBogie are excluded). The optimisation is a multivariate Newton method with Levenberg damping and a limited step. Without bisector joints the fast path with no optimisation is taken.",
+    "model.s5.title": "Kinematic envelope (quasi-static)",
+    "model.s5.body":
+      "Simplified quasi-static rules, NOT EN 15273 certified. Per station, with the local curvature, the geometric width is augmented by cant, deficiency/excess, clearances and tolerance terms. Default values:",
+    "model.s5.item.1":
+      "Cant D = D_max scaled by curvature, or interpolated from a CSV table pk;D_mm if loaded (D_max 120 mm, R_full 30 m).",
+    "model.s5.item.2":
+      "Deficiency/excess: without a speed profile it is scaled heuristically by curvature; with a CSV table pk;v_kmh the real deficiency I(s) is computed (I_max 100 mm).",
+    "model.s5.item.3": "Heights and track: h = 1.60 m, e = 1.50 m, h₀ = 0.70 m, σ = 0.25.",
+    "model.s5.item.4": "Clearances and tolerances: q = 35 mm, T_alignment = 20 mm, T_cant = 15 mm.",
+    "model.limitsTitle": "Known limitations",
+    "model.lim.1":
+      "Station-based envelope: isolated between branches by a longitudinal window; the residual are hairpins of infeasible radius (real, connected double occupancy).",
+    "model.lim.2":
+      "The default body yaw is the secant (centred-damper approximation); it is only relaxed with bisector joints.",
+    "model.lim.3":
+      "Suspended-module articulations: only at the module ends (no offsets); offsets are supported on bogies.",
+    "model.lim.4":
+      "Rectangular bodies without cabin-end tapering (conservative on the inside of the curve).",
+    "model.lim.5":
+      "Cant by table: uses |D| and decides the side by curvature; cant on straight track is effectively ignored.",
+    "model.lim.6":
+      "Bisector performance is ~0.5–1.5 s per sweep; it runs in a Web Worker so it does not block the interface.",
+    "model.validationTitle": "Validation",
+    "model.validationBody":
+      "The engine is validated numerically against exact analytic cases (rigid two-axle in a circle, chord sagitta, two-bogie car) and against a battery of golden values that are mandatory regression tests: no engine change is accepted without them passing. The full protocol (cases, tolerances and how to reproduce them) is in docs/VALIDATION_PROTOCOL.md.",
     "rail.input": "▤ Input",
     "rail.results": "Results ▤",
     "banner.msg": "An unsaved previous session was found.",
@@ -868,6 +1051,14 @@ const DICT: Record<Locale, Record<string, string>> = {
     "cart.totalWidth": "Total swept width",
     "cart.overWidth": "Over-width vs body",
     "cart.dir": "Analysis direction",
+    "cart.dirRev": "{n}/{m} sections reversed",
+    "cart.dirFwd": "Running direction (forward)",
+    "cart.uicSaving": "saving from articulation",
+    "cart.noObs": "no obstacles in range",
+    "cart.points": "point(s)",
+    "cart.none": "none",
+    "cart.joint": "Joint",
+    "cart.lim": "lim",
     "cart.kinLR": "Kinematic env. l/r",
     "cart.kinTotal": "Kinematic env. total",
     "cart.uicEquiv": "UIC 505-1 equiv. in/out",
@@ -881,6 +1072,9 @@ const DICT: Record<Locale, Record<string, string>> = {
     "hyp.uic": "UIC 505",
     "hyp.bidir": "bidirectional",
     "hyp.fullTraversal": "full traversal",
+    "status.cancelled": "Computation cancelled.",
+    "status.computing": "Computing…",
+    "status.computingEq": "Computing… (centering-rod equilibrium, this may take a few seconds)",
   },
 };
 

@@ -14,10 +14,12 @@ import { APP_NAME, VERSION } from "../version";
 import { t, numLocale } from "./i18n";
 import { pkFmt } from "./pk";
 import { paramHash } from "./param-hash";
+import { trapFocus } from "./focus-trap";
 
 let viewEl: HTMLElement;
 let bodyEl: HTMLElement;
 let opened = false;
+let releaseTrap: (() => void) | null = null;
 
 export function isReportOpen(): boolean {
   return opened;
@@ -45,12 +47,16 @@ export function openReport(): void {
   bodyEl.innerHTML = buildReport();
   viewEl.hidden = false;
   opened = true;
+  releaseTrap = trapFocus(viewEl);
   $<HTMLButtonElement>("btnReportPrint").focus();
 }
 
 function closeReport(): void {
   opened = false;
+  releaseTrap?.();
+  releaseTrap = null;
   viewEl.hidden = true;
+  $<HTMLButtonElement>("menuReport").focus();
 }
 
 const esc = (s: string): string =>

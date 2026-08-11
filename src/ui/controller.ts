@@ -56,7 +56,9 @@ function setProgress(frac: number | null): void {
     return;
   }
   wrap.style.display = "block";
-  $("progressBar").style.width = `${Math.round(frac * 100)}%`;
+  const pct = Math.round(frac * 100);
+  $("progressBar").style.width = `${pct}%`;
+  $("progressBarOuter").setAttribute("aria-valuenow", String(pct));
 }
 
 /** Termina el worker en curso (cancelación) y libera la referencia. */
@@ -72,7 +74,7 @@ export function cancelRun(): void {
   if (!worker) return;
   terminateWorker();
   setProgress(null);
-  setStatus("Cálculo cancelado.");
+  setStatus(t("status.cancelled"));
 }
 
 export function run(): void {
@@ -108,11 +110,7 @@ export function run(): void {
     }
   }
 
-  setStatus(
-    hasBisectriz(effVeh)
-      ? "Calculando… (equilibrio de bielas de centrado, puede tardar unos segundos)"
-      : "Calculando…",
-  );
+  setStatus(hasBisectriz(effVeh) ? t("status.computingEq") : t("status.computing"));
   setProgress(0);
   updateStatusBar({ file: state.trackName || "—", hyp: activeHyp() });
   $<HTMLButtonElement>("btnDxfOut").disabled = true;
