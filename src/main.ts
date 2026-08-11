@@ -22,6 +22,7 @@ import { renderCartouche } from "./ui/cartouche";
 import { initI18n, t } from "./ui/i18n";
 import { initShortcuts } from "./ui/shortcuts";
 import { initTrainEditor } from "./ui/train-editor";
+import { initReport } from "./ui/report";
 import { setRedraw } from "./ui/vpshared";
 
 /** Re-renderiza las partes con texto dinámico tras un cambio de idioma. */
@@ -57,6 +58,7 @@ function boot(): void {
   initPanels();
   initProject();
   initTrainEditor();
+  initReport();
 
   // redibujado al redimensionar el viewport (arrastra también el perfil)
   const vp = document.getElementById("viewport") as HTMLCanvasElement;
