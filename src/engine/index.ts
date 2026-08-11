@@ -21,4 +21,5 @@ export { uicParamsFromVehicle, uic505Profile } from "./uic";
 export { buildReportData } from "./report-data";
 export type { ReportData } from "./report-data";
 export { TRACK_PRESETS, VEHICLE_PRESETS } from "./presets";
+export { buildConsist, defaultCoupler } from "./consist";
 export * from "../types";

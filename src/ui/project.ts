@@ -3,14 +3,15 @@
 // cruda (s,x,y) y se reconstruye con `makeTrack` (igual que el worker), de modo
 // que abrir un proyecto reproduce el cálculo bit a bit. Autosave en localStorage
 // con recuperación al arrancar mediante un banner. Sin dependencias externas.
-import { defaultKin, makeTrack, VEHICLE_PRESETS } from "../engine/index";
+import { defaultCoupler, defaultKin, makeTrack, VEHICLE_PRESETS } from "../engine/index";
 import type { Chain, KinRules, PkMap, Vehicle } from "../types";
 import { VERSION } from "../version";
 import { $, clone, download, fmt } from "./dom";
 import { state } from "./state";
-import type { UicState, ViewState } from "./state";
+import type { ConsistState, UicState, ViewState } from "./state";
 import { run } from "./controller";
 import { loadPreset, renderKinPanel, renderUicPanel, renderVehiclePanel } from "./panels";
+import { syncConsistPanel } from "./consist-ui";
 import { drawSchematic } from "./schematic";
 import { fitView } from "./viewport";
 
@@ -33,6 +34,8 @@ export interface BarridoProject {
   vehicle: Vehicle;
   kin: KinRules;
   uic: UicState;
+  /** Dos trenes acoplados (opcional; docs previos ⇒ desactivado). */
+  consist?: ConsistState;
   obstacles: Chain[] | null;
   obstaclesName: string;
   track: SerTrack | null;
@@ -54,6 +57,7 @@ export function serializeProject(): BarridoProject {
     vehicle: clone(state.vehicle),
     kin: clone(state.kin),
     uic: clone(state.uic),
+    consist: clone(state.consist),
     obstacles: state.obstacles ? clone(state.obstacles) : null,
     obstaclesName: state.obstaclesName,
     track: t
@@ -82,6 +86,9 @@ export function applyProject(doc: BarridoProject): void {
   state.vehicle = clone(p.vehicle);
   state.kin = clone(p.kin);
   state.uic = clone(p.uic);
+  state.consist = p.consist
+    ? clone(p.consist)
+    : { enabled: false, trainB: null, coupler: defaultCoupler() };
   state.obstacles = p.obstacles ? clone(p.obstacles) : null;
   state.obstaclesName = p.obstaclesName || "";
   if (p.track) {
@@ -107,6 +114,7 @@ export function newProject(): void {
   state.vehicle = clone(VEHICLE_PRESETS[0].vehicle);
   state.kin = defaultKin();
   state.uic = { enabled: false, a: 13.9, na: 2.3, p: 1.85, b: 1.325 };
+  state.consist = { enabled: false, trainB: null, coupler: defaultCoupler() };
   state.obstacles = null;
   state.obstaclesName = "";
   state.gauge = 1.435;
@@ -121,6 +129,7 @@ function refreshInputUI(): void {
   renderVehiclePanel();
   renderKinPanel();
   renderUicPanel();
+  syncConsistPanel();
   drawSchematic();
   $<HTMLInputElement>("trackGauge").value = String(Math.round(state.gauge * 1000));
   $<HTMLSelectElement>("trackPreset").selectedIndex = -1;

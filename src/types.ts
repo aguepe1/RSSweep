@@ -96,6 +96,35 @@ export interface Joint {
   fuelleWidth: number;
   maxAngleDeg: number;
   stiffness: number;
+  /**
+   * Marca de enganche entre dos trenes acoplados (consist). Si es true, la rótula
+   * une un testero de tren con la barra de enganche: NO se dibuja fuelle/gangway
+   * en el hueco (el enganche es una barra al aire, no una pasarela). Puramente de
+   * presentación; el solver la trata como cualquier rótula de su `type`.
+   */
+  coupler?: boolean;
+}
+
+/** Tipo de enganche entre dos trenes acoplados. */
+export type CouplerType = "articulado" | "automatico" | "rigido";
+
+/**
+ * Enganche (coupler) entre dos trenes acoplados. Se modela como una barra rígida
+ * (drawbar) de longitud `length` articulada en ambos extremos: cinemáticamente es
+ * un módulo suspendido flanqueado por dos rótulas (libre para articulado/automático,
+ * bisectriz con `stiffness` para el enganche centrado/rígido), con `maxAngleDeg` de
+ * límite por rótula. Ver `buildConsist` en `src/engine/consist.ts`.
+ */
+export interface Coupler {
+  type: CouplerType;
+  /** Longitud de la barra de enganche entre testeros (m). */
+  length: number;
+  /** Ancho dibujado de la barra (m); presentación. */
+  width: number;
+  /** Límite de giro por rótula del enganche (°). */
+  maxAngleDeg: number;
+  /** Rigidez de centrado (solo enganche centrado/rígido → rótulas bisectriz). */
+  stiffness: number;
 }
 
 export interface Mirror {

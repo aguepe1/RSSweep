@@ -487,11 +487,13 @@ export function footprint(v: Vehicle, chain: ChainSolution): Poly[] {
             vadd(r0, vscale(nrm, hw)),
           ],
     });
-    if (jBefore) {
+    // Rótulas normales: registran la cara para tender el fuelle. Las rótulas de
+    // enganche (coupler) NO llevan fuelle/gangway — el hueco lo ocupa la barra.
+    if (jBefore && !jBefore.coupler) {
       if (!faces[idx - 1]) faces[idx - 1] = [];
       faces[idx - 1][1] = { c: f0, nrm, hw: (jBefore.fuelleWidth || m.width) / 2 };
     }
-    if (jAfter) {
+    if (jAfter && !jAfter.coupler) {
       if (!faces[idx]) faces[idx] = [];
       faces[idx][0] = { c: r0, nrm, hw: (jAfter.fuelleWidth || m.width) / 2 };
     }
