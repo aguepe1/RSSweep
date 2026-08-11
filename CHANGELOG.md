@@ -6,6 +6,8 @@ Todas las versiones notables de BARRIDO. El formato sigue
 
 ## [No publicado]
 
+## [0.5.0] — 2026-08-11
+
 ### Añadido
 
 - **Página «Modelo y límites» en-app (E5-3)**: nueva entrada «Ayuda ▸ Modelo y límites…»
