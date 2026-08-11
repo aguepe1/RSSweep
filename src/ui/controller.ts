@@ -1,6 +1,12 @@
 // Orquestación: validación + cálculo del barrido, estado, reproducción y
 // exportación (DXF/CSV). Depende de viewport/perfil/cajetín para redibujar.
-import { hasBisectriz, validateVehicle, vehicleWarnings, writeDXF } from "../engine/index";
+import {
+  buildConsist,
+  hasBisectriz,
+  validateVehicle,
+  vehicleWarnings,
+  writeDXF,
+} from "../engine/index";
 import { APP_NAME, VERSION } from "../version";
 import { $, download, fmt } from "./dom";
 import { pkVal } from "./pk";
@@ -84,13 +90,30 @@ export function run(): void {
     setProgress(null);
     return;
   }
-  // cabinas automáticas en extremos
+  // cabinas automáticas en extremos (del tren primario, para el editor/esquema)
   state.vehicle.modules.forEach((m, i) => {
     m.cabFront = i === 0;
     m.cabRear = i === state.vehicle.modules.length - 1;
   });
+
+  // Vehículo efectivo del barrido: si hay dos trenes acoplados, se ensambla
+  // A ▸ enganche ▸ B (buildConsist); si no, es el tren primario tal cual. El
+  // editor/paneles siguen operando sobre `state.vehicle` (tren A).
+  const effVeh =
+    state.consist.enabled && state.track
+      ? buildConsist(state.vehicle, state.consist.trainB ?? state.vehicle, state.consist.coupler)
+      : state.vehicle;
+  if (state.consist.enabled) {
+    const cErrs = validateVehicle(effVeh);
+    if (cErrs.length) {
+      $("vehErrors").textContent = cErrs.join(" · ");
+      setProgress(null);
+      return;
+    }
+  }
+
   setStatus(
-    hasBisectriz(state.vehicle)
+    hasBisectriz(effVeh)
       ? "Calculando… (equilibrio de bielas de centrado, puede tardar unos segundos)"
       : "Calculando…",
   );
@@ -102,7 +125,7 @@ export function run(): void {
   const track = state.track;
   const req: SweepRequest = {
     track: { s: track.s, x: track.x, y: track.y },
-    vehicle: state.vehicle,
+    vehicle: effVeh,
     step: parseFloat($<HTMLInputElement>("simStep").value) || 0.25,
     kin: state.kin,
     obstacles: state.obstacles,

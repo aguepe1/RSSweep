@@ -22,6 +22,7 @@ import { renderCartouche } from "./ui/cartouche";
 import { initI18n, t } from "./ui/i18n";
 import { initShortcuts } from "./ui/shortcuts";
 import { initTrainEditor } from "./ui/train-editor";
+import { initConsist } from "./ui/consist-ui";
 import { initReport } from "./ui/report";
 import { setRedraw } from "./ui/vpshared";
 
@@ -58,6 +59,7 @@ function boot(): void {
   initPanels();
   initProject();
   initTrainEditor();
+  initConsist();
   initReport();
 
   // redibujado al redimensionar el viewport (arrastra también el perfil)

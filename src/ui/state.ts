@@ -1,9 +1,10 @@
 // Estado global de la UI. Un único objeto mutable compartido por los módulos
 // (paneles, viewport, perfil, controlador). En E3 se sustituirá por un store real.
-import { defaultKin, VEHICLE_PRESETS } from "../engine/index";
+import { defaultCoupler, defaultKin, VEHICLE_PRESETS } from "../engine/index";
 import type {
   Chain,
   ClashResult,
+  Coupler,
   KinRules,
   PkMap,
   SweepResult,
@@ -15,6 +16,13 @@ import { clone } from "./dom";
 
 /** Parámetros UIC + flag de activación de la comparación. */
 export type UicState = UicParams & { enabled: boolean };
+
+/** Dos trenes acoplados (consist). `trainB` null ⇒ segundo tren igual al primero. */
+export interface ConsistState {
+  enabled: boolean;
+  trainB: Vehicle | null;
+  coupler: Coupler;
+}
 
 /** Encuadre del viewport (pan/zoom en píxeles CSS). */
 export interface ViewState {
@@ -30,6 +38,8 @@ export interface AppState {
   obstaclesName: string;
   clash: ClashResult | null;
   uic: UicState;
+  /** Dos trenes acoplados: si `enabled`, el barrido usa A ▸ enganche ▸ B. */
+  consist: ConsistState;
   track: Track | null;
   trackName: string;
   trackLen: number;
@@ -53,6 +63,7 @@ export const state: AppState = {
   obstaclesName: "",
   clash: null,
   uic: { enabled: false, a: 13.9, na: 2.3, p: 1.85, b: 1.325 },
+  consist: { enabled: false, trainB: null, coupler: defaultCoupler() },
   track: null,
   trackName: "",
   trackLen: 0,

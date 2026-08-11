@@ -26,6 +26,13 @@ export function renderCartouche(): void {
     ["cart.totalWidth", `<span class="v amber">${fmt(s.totalWidth)} m</span>`],
     ["cart.overWidth", `+${fmt(s.totalWidth - 2 * s.bodyHalfWidth)} m`],
   ].map(([k, val]) => [t(k), val]);
+  if (state.consist.enabled) {
+    const cp = state.consist.coupler;
+    rows.push([
+      t("cart.consist"),
+      `${t("consist.type." + cp.type)} · ${fmt(cp.length, 2)} m · ±${fmt(cp.maxAngleDeg, 0)}°`,
+    ]);
+  }
   if (s.bidirectional) {
     const dir = state.sweep.rowDir;
     const nRev = dir ? dir.reduce((a, b) => a + b, 0) : 0;

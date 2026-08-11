@@ -1593,6 +1593,60 @@
                 </div>
               </div>
               <div class="sec">
+                <h2 data-i18n="consist.title">Tren acoplado (consist)</h2>
+                <div class="row">
+                  <label for="consistEnabled" data-i18n="consist.enable"
+                    >Simular dos trenes acoplados</label
+                  ><input type="checkbox" id="consistEnabled" style="flex: 0 0 auto" />
+                </div>
+                <div id="consistFields" style="display: none">
+                  <div class="row">
+                    <label for="consistTrainB" data-i18n="consist.trainB">Segundo tren</label
+                    ><select id="consistTrainB"></select>
+                  </div>
+                  <div class="row">
+                    <label for="couplerType" data-i18n="consist.couplerType">Tipo de enganche</label
+                    ><select id="couplerType">
+                      <option value="articulado" data-i18n="consist.type.articulado">
+                        Articulado (barra)
+                      </option>
+                      <option value="automatico" data-i18n="consist.type.automatico">
+                        Automático (Scharfenberg)
+                      </option>
+                      <option value="rigido" data-i18n="consist.type.rigido">
+                        Rígido / centrado
+                      </option>
+                    </select>
+                  </div>
+                  <div class="grid2">
+                    <div class="f">
+                      <label style="font-size: 10px; color: var(--faint)" data-i18n="consist.length"
+                        >LONGITUD ENGANCHE [m]</label
+                      ><input type="number" step="0.05" min="0.1" id="couplerLength" />
+                    </div>
+                    <div class="f">
+                      <label style="font-size: 10px; color: var(--faint)" data-i18n="consist.width"
+                        >ANCHO BARRA [m]</label
+                      ><input type="number" step="0.05" min="0.05" id="couplerWidth" />
+                    </div>
+                    <div class="f">
+                      <label
+                        style="font-size: 10px; color: var(--faint)"
+                        data-i18n="consist.maxAngle"
+                        >LÍMITE GIRO/RÓTULA [°]</label
+                      ><input type="number" step="1" min="0" id="couplerMaxAngle" />
+                    </div>
+                  </div>
+                </div>
+                <div class="hint" data-i18n-html="consist.hint">
+                  Acopla un segundo tren tras el primero mediante una <b>barra de enganche</b>
+                  (drawbar) de la longitud indicada, articulada en ambos extremos. El tipo fija la
+                  cinemática de las rótulas del enganche (articulado/automático = pivotes libres;
+                  rígido = barra centrada) y el límite de giro por rótula. El barrido se calcula
+                  sobre el conjunto A ▸ enganche ▸ B.
+                </div>
+              </div>
+              <div class="sec">
                 <h2 data-i18n="veh.save.title">Guardar configuración</h2>
                 <button
                   class="btn primary"

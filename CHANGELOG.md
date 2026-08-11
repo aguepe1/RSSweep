@@ -8,6 +8,18 @@ Todas las versiones notables de BARRIDO. El formato sigue
 
 ### Añadido
 
+- **Dos trenes acoplados (consist) + enganche**: nueva sección «Tren acoplado» en la
+  pestaña Vehículo para simular un segundo tren acoplado tras el primero. El enganche
+  (coupler) se modela como una **barra de tracción** (drawbar) de longitud y ancho
+  configurables, articulada en ambos extremos, con **tipo** (articulado / automático
+  Scharfenberg / rígido-centrado), **límite de giro por rótula** y elección del segundo
+  tren (preset o «igual que el primero»). El barrido se calcula sobre el conjunto
+  A ▸ enganche ▸ B ensamblado por `buildConsist` (`src/engine/consist.ts`), que reutiliza
+  el patrón bogie–suspendido–bogie ya validado: articulado/automático → rótulas `libre`,
+  rígido → `bisectriz` con rigidez. Aditivo y **sin cambios en los valores dorados**; la
+  única modificación del motor es saltar el fuelle/gangway en las rótulas de enganche
+  (`Joint.coupler`). Se anota en el cajetín, se persiste en el proyecto/autosave e i18n
+  ES/FR/EN. Cubierto por `tests/consist.test.ts` y `e2e/consist.spec.ts`.
 - **Informe de gálibo entregable (E4-1)**: nueva vista «Informes ▸ Ver informe de
   gálibo…» (o Ctrl+P) que genera un documento HTML paginado imprimible a PDF con
   `@media print` + `@page` A4 y cabecera/pie repetidos. Secciones: portada con
